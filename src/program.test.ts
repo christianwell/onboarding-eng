@@ -64,4 +64,14 @@ describe('program configuration', () => {
     expect(getCompletionUrl(validateProgram(config), 'https://onboarding.example/program/stardance?return_to=javascript:alert(1)')).toBe('https://example.com')
     expect(getCompletionUrl(validateProgram(config), 'https://onboarding.example/program/stardance?return_to=https%3A%2F%2Fevil.example%2Ffake')).toBe('https://example.com')
   })
+
+  it('rejects incomplete branding before the loader tries to use it', () => {
+    expect(() => validateProgram({ ...config, program: { ...config.program, logo: '' } })).toThrow('logo')
+    expect(() => validateProgram({ ...config, program: { ...config.program, tagline: '' } })).toThrow('tagline')
+  })
+
+  it('rejects malformed completion URLs and origins', () => {
+    expect(() => validateProgram({ ...config, completion: { ...config.completion, auth_url: 'javascript:alert(1)' } })).toThrow('HTTP or HTTPS URL')
+    expect(() => validateProgram({ ...config, completion: { ...config.completion, return_origins: ['https://example.com/path'] } })).toThrow('without paths')
+  })
 })

@@ -30,7 +30,7 @@ jobs:
       - run: npm run build:github
       - run: |
           cp dist/index.html dist/404.html
-          for route in flow-tester program/slack program/stardance; do
+          for route in flow-tester program-builder program/slack program/stardance; do
             mkdir -p "dist/$route"
             cp dist/index.html "dist/$route/index.html"
           done

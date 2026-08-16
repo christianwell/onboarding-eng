@@ -237,6 +237,7 @@ function App() {
         const firstIncomplete = config.training.lessons.findIndex((lesson) => !currentLessons.includes(lesson))
         setCompleted(currentLessons)
         setLessonIndex(firstIncomplete === -1 ? config.training.lessons.length - 1 : firstIncomplete)
+        if (currentLessons.length > 0) setIntroComplete(true)
       }
     } catch {
       localStorage.removeItem(`onboarding:${config.program.slug}`)
@@ -245,6 +246,11 @@ function App() {
 
   const lessons = config?.training.lessons ?? []
   const defaultChannels = config ? getDefaultChannels(config) : []
+  const helpChannel = config
+    ? defaultChannels.find((name) => name === `${config.program.slug}-help`)
+      ?? defaultChannels.find((name) => name.includes('help'))
+      ?? config.training.practice_channel
+    : 'help'
   const visibleMessages = directMessage ? directMessages : messages
   const activeLesson = lessons[lessonIndex]
   const activeCopy = activeLesson ? {
@@ -620,7 +626,7 @@ function App() {
         {activeLesson === 'dms' ? searchQuery.toLowerCase().includes('christian')
           ? <div className="search-results people-results"><p>People matching <strong>{searchQuery}</strong></p><button className="dm-search-result" aria-label="Open DM with Christian" onClick={() => { selectDirectMessage('Christian'); setSearchOpen(false); setSearchQuery('') }}><span className="search-avatar">C</span><div><strong>Christian</strong><span>@christian · Direct message</span></div><ChevronRight /></button></div>
           : <div className="search-empty"><UserRound /><h3>Find Christian</h3><p>Type <button onClick={() => setSearchQuery('Christian')}>Christian</button> to find their Hack Club account.</p></div>
-        : !searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><p>Try <button onClick={() => setSearchQuery('hardware help')}>hardware help</button> to find where makers get unstuck.</p><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results"><p>3 results for <strong>{searchQuery}</strong></p><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>hardware</strong><span><b>Jules</b> · Need hardware help? Share a photo and what you’ve tried so far.</span></div></button><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>stardance-help</strong><span><b>Orbit</b> · Ask for help at any stage—unfinished projects are welcome here.</span></div></button></div>}
+        : !searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><p>Try <button onClick={() => setSearchQuery('hardware help')}>hardware help</button> to find where makers get unstuck.</p><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results"><p>3 results for <strong>{searchQuery}</strong></p><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>hardware</strong><span><b>Jules</b> · Need hardware help? Share a photo and what you’ve tried so far.</span></div></button><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>{helpChannel}</strong><span><b>Orbit</b> · Ask for help at any stage—unfinished projects are welcome here.</span></div></button></div>}
       </section></div>}
 
       {allComplete && <div className="modal-backdrop completion-backdrop"><section className="completion-modal">

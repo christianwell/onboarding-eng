@@ -4,6 +4,8 @@ An interactive Slack simulator that teaches new Hack Club program participants b
 
 Open `/flow-tester` to try a complete mock application → Slack onboarding → returned confirmation round trip.
 
+Open `/program-builder` for Campaign Studio, a visual editor that validates a program's branding, Slack channels, lessons, Auth handoff, and allowed return sites. It generates and downloads `config.yaml` and shows the exact config and logo paths to add to the repository.
+
 ## What participants practice
 
 Nine short, action-gated lessons cover channels, messages, pings, DMs, threads, reactions, search, notifications, and community safety. Typed messages remain in the browser; the simulator never connects to Slack.

@@ -14,10 +14,10 @@ export const lessonIds = [
 
 export type LessonId = (typeof lessonIds)[number]
 
-export const internalLessonIds: LessonId[] = ['pings', 'dms', 'threads', 'reactions']
+export const internalLessonIds = ['pings', 'dms', 'threads', 'reactions'] as const satisfies readonly LessonId[]
 
 export function resolveLessons(configured: LessonId[]) {
-  return lessonIds.filter((lesson) => configured.includes(lesson) || internalLessonIds.includes(lesson))
+  return lessonIds.filter((lesson) => configured.includes(lesson) || internalLessonIds.some((internal) => internal === lesson))
 }
 
 export interface ChannelSection {
@@ -67,11 +67,26 @@ export function getCompletionUrl(config: ProgramConfig, currentUrl: string) {
   }
 }
 
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function validateProgram(value: unknown): ProgramConfig {
   if (!value || typeof value !== 'object') throw new Error('Program config must be an object')
   const config = value as ProgramConfig
-  if (!config.program?.name || !config.program.slug || !config.program.color) {
-    throw new Error('Program name, slug, and color are required')
+  if (!config.program?.name || !config.program.slug || !config.program.color || !config.program.logo || !config.program.tagline) {
+    throw new Error('Program name, slug, color, logo, and tagline are required')
+  }
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.program.slug)) {
+    throw new Error('Program slug must use lowercase letters, numbers, and hyphens')
+  }
+  if (!/^#[0-9a-f]{6}$/i.test(config.program.color)) {
+    throw new Error('Program color must be a six-digit hex color')
   }
   if (!Array.isArray(config.training?.lessons)) {
     throw new Error('Training lessons must be an array')
@@ -92,11 +107,20 @@ export function validateProgram(value: unknown): ProgramConfig {
   if (!Array.isArray(config.channels.recommended)) {
     throw new Error('Recommended channels must be an array')
   }
+  if (config.channels.default.some((section) => section.channels.some((channel) => typeof channel !== 'string' || !channel.trim())) || config.channels.recommended.some((channel) => typeof channel !== 'string' || !channel.trim())) {
+    throw new Error('Channel names must be non-empty strings')
+  }
   if (!config.completion?.auth_url || !config.completion.entry_channel) {
     throw new Error('Completion auth URL and entry channel are required')
   }
+  if (!isHttpUrl(config.completion.auth_url)) {
+    throw new Error('Completion auth URL must be an HTTP or HTTPS URL')
+  }
   if (!Array.isArray(config.completion.return_origins)) {
     throw new Error('Completion return origins must be an array')
+  }
+  if (config.completion.return_origins.some((origin) => typeof origin !== 'string' || !isHttpUrl(origin) || new URL(origin).origin !== origin)) {
+    throw new Error('Completion return origins must be HTTP or HTTPS origins without paths')
   }
   if (!getDefaultChannels(config).includes(config.completion.entry_channel)) {
     throw new Error('The entry channel must be one of the default channels')
