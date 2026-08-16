@@ -93,8 +93,8 @@ const lessonCopy: Record<LessonId, { eyebrow: string; title: string; body: strin
     eyebrow: 'Talk one-to-one',
     title: 'Send Christian a direct message',
     body: 'DMs are private conversations between the people included. They’re useful for personal details or a quick one-to-one question—not for answers the whole channel could use.',
-    task: 'Open Christian under Direct messages, then send a friendly hello.',
-    hint: 'Find Christian in the Direct messages section of the sidebar.',
+    task: 'Use Search Hack Club to find Christian and open their account.',
+    hint: 'Choose the search bar at the top and type “Christian”.',
   },
   search: {
     eyebrow: 'Find anything',
@@ -250,7 +250,12 @@ function App() {
   const activeCopy = activeLesson ? {
     ...lessonCopy[activeLesson],
     body: lessonCopy[activeLesson].body.replaceAll('Stardance', config?.program.name ?? 'your program'),
-    task: lessonCopy[activeLesson].task.replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
+    task: activeLesson === 'dms' && directMessage === 'Christian'
+      ? 'Send Christian a friendly hello in this DM.'
+      : lessonCopy[activeLesson].task.replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
+    hint: activeLesson === 'dms' && directMessage === 'Christian'
+      ? 'Use the message box below, then press Enter or the send button.'
+      : lessonCopy[activeLesson].hint,
   } : null
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
   const allLessonsComplete = config ? completed.length === lessons.length : false
@@ -289,7 +294,7 @@ function App() {
         : activeLesson === 'threads' && threadOpen
         ? '.thread-composer'
         : activeLesson === 'dms'
-          ? directMessage === 'Christian' ? '.target-composer' : isMobile && !sidebarOpen ? '.mobile-menu' : '.target-dm'
+          ? directMessage === 'Christian' ? '.target-composer' : searchQuery.toLowerCase().includes('christian') ? '.dm-search-result' : searchOpen ? '.search-modal input' : '.search-trigger'
         : activeLesson === 'channels'
           ? '.target-sidebar'
           : activeLesson === 'messages' || activeLesson === 'pings'
@@ -314,7 +319,7 @@ function App() {
         }
         const top = !introComplete
           ? Math.max(50, (window.innerHeight - guideHeight) / 2)
-          : activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms'
+          : activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' && directMessage === 'Christian'
             ? 54
             : Math.max(50, window.innerHeight - guideHeight - 8)
         setGuidePosition({ left: 8, top })
@@ -331,6 +336,11 @@ function App() {
 
       const rect = target.getBoundingClientRect()
       setSpotlight({ left: rect.left - 8, top: rect.top - 8, width: rect.width + 16, height: rect.height + 16 })
+
+      if (activeLesson === 'dms' && directMessage !== 'Christian') {
+        setGuidePosition({ left: 12, top: Math.max(60, window.innerHeight - guideHeight - 12) })
+        return
+      }
 
       if (activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms') {
         setGuidePosition({
@@ -359,7 +369,7 @@ function App() {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', positionGuide)
     }
-  }, [activeLesson, allComplete, directMessage, introComplete, isActiveComplete, notificationsOpen, sidebarOpen, threadOpen])
+  }, [activeLesson, allComplete, directMessage, introComplete, isActiveComplete, notificationsOpen, searchOpen, searchQuery, sidebarOpen, threadOpen])
 
   const completeLesson = (lesson: LessonId) => {
     if (activeLesson !== lesson || completed.includes(lesson) || !config) return
@@ -494,7 +504,6 @@ function App() {
         </div>
         <div className="sidebar-section dm-section">
           <p><ChevronDown size={14} /> Direct messages</p>
-          <button aria-label="Christian" className={`${directMessage === 'Christian' ? 'selected' : ''} ${activeLesson === 'dms' && directMessage !== 'Christian' ? 'target-dm' : ''}`} onClick={() => selectDirectMessage('Christian')}><span className="dm-dot avatar-christian">C<i /></span> Christian</button>
           <button aria-label="Nova" className={directMessage === 'Nova' ? 'selected' : ''} onClick={() => selectDirectMessage('Nova')}><span className="dm-dot avatar-nova">N<i /></span> Nova</button>
           <button aria-label="Mika" className={directMessage === 'Mika' ? 'selected' : ''} onClick={() => selectDirectMessage('Mika')}><span className="dm-dot avatar-mika">M<i /></span> Mika</button>
           <button><Plus size={16} /> Add teammates</button>
@@ -560,7 +569,7 @@ function App() {
         </div>}
       </>}
 
-      <aside className={`coach coach-${activeLesson} ${introComplete ? 'coach-active' : 'coach-intro'}`} style={guidePosition ?? undefined} role="dialog" aria-live="polite" aria-label={`${config.program.name} onboarding guide`}>
+      <aside className={`coach coach-${activeLesson} ${introComplete ? 'coach-active' : 'coach-intro'} ${activeLesson === 'dms' && searchOpen ? 'coach-over-modal' : ''}`} style={guidePosition ?? undefined} role="dialog" aria-live="polite" aria-label={`${config.program.name} onboarding guide`}>
         <div className="coach-brand">
           <span className="guide-brand"><img src={guideAssets.flag} alt="" /> Hack Club</span>
           <span className="guide-step">{introComplete ? `Step ${lessonIndex + 1} of ${lessons.length + 1}` : 'Welcome'}</span>
@@ -608,7 +617,10 @@ function App() {
 
       {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
         <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false) }} placeholder="Search messages, people, and channels" autoFocus /><button type="button" onClick={() => setSearchOpen(false)}><X /></button></form>
-        {!searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><p>Try <button onClick={() => setSearchQuery('hardware help')}>hardware help</button> to find where makers get unstuck.</p><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results"><p>3 results for <strong>{searchQuery}</strong></p><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>hardware</strong><span><b>Jules</b> · Need hardware help? Share a photo and what you’ve tried so far.</span></div></button><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>stardance-help</strong><span><b>Orbit</b> · Ask for help at any stage—unfinished projects are welcome here.</span></div></button></div>}
+        {activeLesson === 'dms' ? searchQuery.toLowerCase().includes('christian')
+          ? <div className="search-results people-results"><p>People matching <strong>{searchQuery}</strong></p><button className="dm-search-result" aria-label="Open DM with Christian" onClick={() => { selectDirectMessage('Christian'); setSearchOpen(false); setSearchQuery('') }}><span className="search-avatar">C</span><div><strong>Christian</strong><span>@christian · Direct message</span></div><ChevronRight /></button></div>
+          : <div className="search-empty"><UserRound /><h3>Find Christian</h3><p>Type <button onClick={() => setSearchQuery('Christian')}>Christian</button> to find their Hack Club account.</p></div>
+        : !searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><p>Try <button onClick={() => setSearchQuery('hardware help')}>hardware help</button> to find where makers get unstuck.</p><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results"><p>3 results for <strong>{searchQuery}</strong></p><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>hardware</strong><span><b>Jules</b> · Need hardware help? Share a photo and what you’ve tried so far.</span></div></button><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>stardance-help</strong><span><b>Orbit</b> · Ask for help at any stage—unfinished projects are welcome here.</span></div></button></div>}
       </section></div>}
 
       {allComplete && <div className="modal-backdrop completion-backdrop"><section className="completion-modal">

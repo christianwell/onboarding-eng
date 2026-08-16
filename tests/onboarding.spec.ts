@@ -33,7 +33,9 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await page.getByRole('button', { name: 'Send message' }).click()
   await page.getByRole('button', { name: /next mission/i }).click()
 
-  await page.getByRole('button', { name: 'Christian', exact: true }).click()
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('Christian')
+  await page.getByRole('button', { name: /open dm with christian/i }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Christian', exact: true })).toBeVisible()
   await page.getByLabel('Message Christian').fill('Hey Christian! I’m excited to build a constellation game.')
   await page.getByRole('button', { name: 'Send message' }).click()
@@ -98,8 +100,9 @@ test('guides a mobile user into Christian’s DMs', async ({ page }) => {
   await page.getByRole('button', { name: /let’s get started/i }).click()
 
   await expect(page.getByRole('heading', { name: /send christian a direct message/i })).toBeVisible()
-  await page.getByRole('button', { name: 'Open channel list' }).click()
-  await page.getByRole('button', { name: 'Christian', exact: true }).click()
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('Christian')
+  await page.getByRole('button', { name: /open dm with christian/i }).click()
   await page.getByLabel('Message Christian').fill('Hey Christian! Nice to meet you.')
   await page.getByRole('button', { name: 'Send message' }).click()
 

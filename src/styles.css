@@ -84,7 +84,7 @@ button { color: inherit; }
 .safety-quiz > a { display: inline-block; margin-top: 10px; color: var(--program); font-size: 9.5px; font-weight: 600; }
 
 /* Guided targets */
-.target-pulse, .target-action, .target-composer, .target-sidebar, .target-dm { position: relative; z-index: 3; animation: targetGlow 1.6s ease-in-out infinite; }
+.target-pulse, .target-action, .target-composer, .target-sidebar { position: relative; z-index: 3; animation: targetGlow 1.6s ease-in-out infinite; }
 .target-sidebar { margin: 14px 7px 0; padding-left: 0; padding-right: 0; box-shadow: 0 0 0 2px #ffe28a; }
 .target-composer { border-color: var(--program); box-shadow: 0 0 0 3px rgba(108,92,231,.18); }
 .target-action { border-color: var(--program) !important; box-shadow: 0 0 0 2px rgba(108,92,231,.15); }
@@ -570,13 +570,16 @@ button { color: inherit; }
 .composer-actions .send-button { min-width: 36px; color: white; background: #007a5a; }
 .composer-actions .send-button:hover { background: #006b4f; }
 .composer-actions .send-button:disabled { color: #aaa; background: #f1f0f1; cursor: default; }
+.search-results.people-results > button { grid-template-columns: 38px 1fr 22px; align-items: center; }
+.search-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 7px; color: white !important; background: #ec3750; font-size: 15px !important; font-weight: 700; }
+.search-results.people-results > button > svg { padding: 0; background: none; }
+.coach.coach-over-modal { z-index: 110; }
 .mention-menu { position: absolute; z-index: 60; left: 126px; bottom: 41px; width: 230px; overflow: hidden; padding: 7px 0; border: 1px solid #d8d5d8; border-radius: 9px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
 .mention-menu > strong { display: block; padding: 5px 12px 7px; color: #616061; font-size: 11px; }
 .mention-menu > button { border: 0; width: 100%; min-height: 42px; display: flex; align-items: center; gap: 9px; padding: 5px 12px; color: #1d1c1d; background: white; text-align: left; cursor: pointer; }
 .mention-menu > button:hover { background: #1264a3; color: white; }
 .mention-menu > button > span:last-child { display: flex; flex-direction: column; }
 .mention-menu small { color: #777; font-size: 10px; }.mention-menu > button:hover small { color: rgba(255,255,255,.8); }
-.sidebar-section button.target-dm { width: calc(100% - 16px); margin-inline: 8px; padding-inline: 8px; border-radius: 6px; box-shadow: 0 0 0 3px #ffe28a; }
 .simulation-note { display: none; }
 .thread-panel { top: 48px; width: 420px; }
 
