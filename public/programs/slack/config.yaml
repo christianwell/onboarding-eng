@@ -1,0 +1,49 @@
+program:
+  name: Hack Club
+  slug: slack
+  color: "#ec3750"
+  logo: "/programs/slack/logo.svg"
+  tagline: "Hang out. Make friends. Build projects."
+
+training:
+  channel_target: slack-guide
+  practice_channel: welcome-to-hack-club
+  lessons:
+    - channels
+    - messages
+    - threads
+    - reactions
+    - mentions
+    - search
+    - notifications
+    - safety
+
+channels:
+  # The default join scenario currently assigns these through Hack Club Auth.
+  default:
+    - label: Welcome
+      channels:
+        - welcome-to-hack-club
+        - slack-guide
+    - label: Hack Club
+      channels:
+        - announcements
+        - lounge
+        - help
+        - news-wire
+
+  # Core channels recommended by slack.hackclub.com, not automatic membership.
+  recommended:
+    - ysws
+    - code
+    - hardware
+    - scrapbook
+    - happenings
+    - neighbourhood
+    - library
+
+completion:
+  auth_url: "https://auth.hackclub.com/slack"
+  entry_channel: "welcome-to-hack-club"
+  return_origins:
+    - "https://slack.hackclub.com"

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Hack Club flag</title>
+  <rect width="128" height="128" rx="28" fill="#241b4b"/>
+  <path d="M35 97V28" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M39 31c18-14 35 12 56-3v42c-21 15-38-12-56 3V31z" fill="#ec3750" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M54 48h24M66 38v23" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+</svg>

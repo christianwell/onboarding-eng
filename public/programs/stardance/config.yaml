@@ -1,0 +1,58 @@
+program:
+  name: Stardance
+  slug: stardance
+  color: "#6c5ce7"
+  logo: "/programs/stardance/logo.svg"
+  tagline: "Make projects. Get prizes."
+
+training:
+  channel_target: stardance
+  practice_channel: stardance
+  lessons:
+    - channels
+    - messages
+    - threads
+    - reactions
+    - mentions
+    - search
+    - notifications
+    - safety
+
+channels:
+  # Hack Club Auth automatically adds Stardance members to these channels.
+  # Keep this list in sync with OnboardingScenarios::Stardance in hackclub/auth.
+  default:
+    - label: Welcome
+      channels:
+        - welcome-to-hack-club
+        - slack-guide
+    - label: Stardance
+      channels:
+        - stardance
+        - stardance-help
+        - stardance-bulletin
+        - planet
+    - label: Help & community
+      channels:
+        - identity-help
+        - hackatime-help
+        - help
+        - library
+        - lounge
+        - welcome
+        - happenings
+        - community-announcements
+        - announcements
+        - ysws
+
+  # These are useful channels to discover, but Auth does not auto-join them.
+  recommended:
+    - scrapbook
+    - code
+    - hardware
+
+completion:
+  auth_url: "https://auth.hackclub.com/join/stardance"
+  entry_channel: "stardance"
+  return_origins:
+    - "https://stardance.hackclub.com"
