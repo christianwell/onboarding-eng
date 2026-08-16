@@ -7,7 +7,7 @@ program:
 
 training:
   channel_target: slack-guide
-  practice_channel: welcome-to-hack-club
+  practice_channel: lounge
   lessons:
     - channels
     - messages
@@ -44,6 +44,6 @@ channels:
 
 completion:
   auth_url: "https://auth.hackclub.com/slack"
-  entry_channel: "welcome-to-hack-club"
+  entry_channel: "lounge"
   return_origins:
     - "https://slack.hackclub.com"

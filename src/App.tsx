@@ -190,6 +190,7 @@ function App() {
   const [notificationMode, setNotificationMode] = useState('All new messages')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [safetyWrong, setSafetyWrong] = useState(false)
+  const [finished, setFinished] = useState(false)
   const [spotlight, setSpotlight] = useState<OverlayRect | null>(null)
   const [guidePosition, setGuidePosition] = useState<{ left: number; top: number } | null>(null)
   const composerRef = useRef<HTMLInputElement>(null)
@@ -197,7 +198,7 @@ function App() {
   useEffect(() => {
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
       setConfig(loaded)
-      setChannel(getDefaultChannels(loaded)[0])
+      setChannel(loaded.completion.entry_channel)
       setMessages(makeInitialMessages(loaded))
       document.title = `${loaded.program.name} · Slack Flight School`
     }).catch((error: Error) => setLoadError(error.message))
@@ -227,7 +228,8 @@ function App() {
     task: lessonCopy[activeLesson].task.replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
   } : null
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
-  const allComplete = config ? completed.length === lessons.length : false
+  const allLessonsComplete = config ? completed.length === lessons.length : false
+  const allComplete = finished && allLessonsComplete
   const guideProgress = lessons.length ? Math.round(((lessonIndex + 1) / (lessons.length + 1)) * 100) : 0
   const completionUrl = config ? getCompletionUrl(config, window.location.href) : ''
   const returnsToFlow = config ? completionUrl !== config.completion.auth_url : false
@@ -526,12 +528,13 @@ function App() {
             <a href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>
           </div> : !isActiveComplete && <div className="task-box"><span><Rocket size={18} /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
           {!isActiveComplete && <details><summary>Need a hint?</summary><p>{activeCopy!.hint}</p></details>}
-          {isActiveComplete && <div className="success-box"><CheckCircle2 /><div><strong>Mission complete!</strong><span>{allComplete ? 'You’re ready for the real community.' : 'Nice work. Your next skill is ready.'}</span></div></div>}
+          {isActiveComplete && <div className="success-box"><CheckCircle2 /><div><strong>Mission complete!</strong><span>{allLessonsComplete ? 'Everything’s complete. Finish when you’re ready.' : 'Nice work. Your next skill is ready.'}</span></div></div>}
         </div>}
         <div className="guide-actions">
           {!introComplete ? <button className="next-button" onClick={() => setIntroComplete(true)}>Let’s get started <ChevronRight size={16} /></button> : <div>
               {lessonIndex > 0 && <button className="guide-ghost" onClick={() => setLessonIndex((value) => value - 1)}>← Back</button>}
-              {isActiveComplete && !allComplete && <button className="next-button" aria-label="Next mission" onClick={goNext}>Next <ChevronRight size={16} /></button>}
+              {isActiveComplete && !allLessonsComplete && <button className="next-button" aria-label="Next mission" onClick={goNext}>Next <ChevronRight size={16} /></button>}
+              {isActiveComplete && allLessonsComplete && <button className="next-button" onClick={() => setFinished(true)}>Complete onboarding <ChevronRight size={16} /></button>}
             </div>}
         </div>
       </aside>
