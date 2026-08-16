@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('returns to the calling website after all eight lessons', async ({ page }) => {
+test('returns to the calling website after all nine lessons', async ({ page }) => {
   await page.goto('/flow-tester')
   await page.getByLabel('Your name').fill('Ada')
   await page.getByLabel('What are you making?').fill('A constellation game')
@@ -23,16 +23,28 @@ test('returns to the calling website after all eight lessons', async ({ page }) 
   await page.getByRole('button', { name: 'Send message' }).click()
   await page.getByRole('button', { name: /next mission/i }).click()
 
+  await page.getByLabel('Message stardance').fill('@Nova typed without choosing a person')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByRole('heading', { name: /pings are for the right person/i })).toBeVisible()
+  await expect(page.getByText('Mission complete!')).toHaveCount(0)
+  await page.getByRole('button', { name: /mention someone/i }).click()
+  await page.getByRole('option', { name: /Nova/i }).click()
+  await page.getByLabel('Message stardance').fill('@Nova I would love to test the mobile version!')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await page.getByRole('button', { name: /next mission/i }).click()
+
+  await page.getByRole('button', { name: 'Christian', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Christian', exact: true })).toBeVisible()
+  await page.getByLabel('Message Christian').fill('Hey Christian! I’m excited to build a constellation game.')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await page.getByRole('button', { name: /next mission/i }).click()
+
   await page.getByRole('button', { name: /2 replies/i }).click()
   await page.getByPlaceholder('Reply to Nova…').fill('A different note for every star would be lovely!')
   await page.locator('.thread-composer button').click()
   await page.getByRole('button', { name: /next mission/i }).click()
 
   await page.locator('.message-tools button').first().click()
-  await page.getByRole('button', { name: /next mission/i }).click()
-
-  await page.getByLabel('Message stardance').fill('@Nova I would love to test the mobile version!')
-  await page.getByRole('button', { name: 'Send message' }).click()
   await page.getByRole('button', { name: /next mission/i }).click()
 
   await page.getByRole('button', { name: /search hack club/i }).click()
@@ -51,11 +63,11 @@ test('returns to the calling website after all eight lessons', async ({ page }) 
       sessionStorage.setItem('completion-message', JSON.stringify((event as CustomEvent).detail))
     }, { once: true })
   })
-  await expect(page.getByText('Step 8 of 9')).toBeVisible()
+  await expect(page.getByText('Step 9 of 10')).toBeVisible()
   await page.getByRole('button', { name: /report it to @shroud and finish/i }).click()
   await page.getByRole('button', { name: /complete onboarding/i }).click()
   await expect(page.getByRole('heading', { name: /congrats.*you’ve learned slack/i })).toBeVisible()
-  await expect(page.getByText('Step 9 of 9 · Complete')).toBeVisible()
+  await expect(page.getByText('Step 10 of 10 · Complete')).toBeVisible()
   await expect(page.getByText(/sending you back to continue where you left off/i)).toBeVisible()
   await expect(page.getByRole('link', { name: /return to your flow/i })).toHaveAttribute('href', 'http://127.0.0.1:4173/flow-tester?step=slack&onboarding=complete&program=stardance')
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('completion-message'))).toContain('"program":"stardance"')
@@ -74,6 +86,22 @@ test('guides a mobile user through the channel drawer', async ({ page }) => {
   await page.getByRole('button', { name: 'Open channel list' }).click()
   await expect(page.getByRole('button', { name: 'stardance', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'stardance', exact: true }).click()
+
+  await expect(page.getByText('Mission complete!')).toBeVisible()
+})
+
+test('guides a mobile user into Christian’s DMs', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.goto('/program/stardance')
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings'] })))
+  await page.reload()
+  await page.getByRole('button', { name: /let’s get started/i }).click()
+
+  await expect(page.getByRole('heading', { name: /send christian a direct message/i })).toBeVisible()
+  await page.getByRole('button', { name: 'Open channel list' }).click()
+  await page.getByRole('button', { name: 'Christian', exact: true }).click()
+  await page.getByLabel('Message Christian').fill('Hey Christian! Nice to meet you.')
+  await page.getByRole('button', { name: 'Send message' }).click()
 
   await expect(page.getByText('Mission complete!')).toBeVisible()
 })

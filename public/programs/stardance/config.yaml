@@ -11,9 +11,6 @@ training:
   lessons:
     - channels
     - messages
-    - threads
-    - reactions
-    - mentions
     - search
     - notifications
     - safety

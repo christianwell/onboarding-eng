@@ -31,6 +31,17 @@ describe('program configuration', () => {
     expect(getDefaultChannels(validateProgram(config))).toEqual(['welcome', 'stardance', 'stardance-help'])
   })
 
+  it('adds the internal Slack lessons to every program', () => {
+    expect(validateProgram(config).training.lessons).toEqual([
+      'channels',
+      'messages',
+      'pings',
+      'dms',
+      'threads',
+      'reactions',
+    ])
+  })
+
   it('rejects unknown lesson IDs', () => {
     expect(() => validateProgram({ ...config, training: { lessons: ['teleporting'] } })).toThrow('unknown lesson')
   })

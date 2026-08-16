@@ -3,15 +3,22 @@ import { parse } from 'yaml'
 export const lessonIds = [
   'channels',
   'messages',
+  'pings',
+  'dms',
   'threads',
   'reactions',
-  'mentions',
   'search',
   'notifications',
   'safety',
 ] as const
 
 export type LessonId = (typeof lessonIds)[number]
+
+export const internalLessonIds: LessonId[] = ['pings', 'dms', 'threads', 'reactions']
+
+export function resolveLessons(configured: LessonId[]) {
+  return lessonIds.filter((lesson) => configured.includes(lesson) || internalLessonIds.includes(lesson))
+}
 
 export interface ChannelSection {
   label: string
@@ -66,12 +73,13 @@ export function validateProgram(value: unknown): ProgramConfig {
   if (!config.program?.name || !config.program.slug || !config.program.color) {
     throw new Error('Program name, slug, and color are required')
   }
-  if (!Array.isArray(config.training?.lessons) || config.training.lessons.length === 0) {
-    throw new Error('At least one training lesson is required')
+  if (!Array.isArray(config.training?.lessons)) {
+    throw new Error('Training lessons must be an array')
   }
   if (config.training.lessons.some((lesson) => !lessonIds.includes(lesson))) {
     throw new Error('Program config contains an unknown lesson')
   }
+  config.training.lessons = resolveLessons(config.training.lessons)
   if (!config.training.channel_target || !config.training.practice_channel) {
     throw new Error('Training channel target and practice channel are required')
   }

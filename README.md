@@ -6,7 +6,7 @@ Open `/flow-tester` to try a complete mock application → Slack onboarding → 
 
 ## What participants practice
 
-Eight short, action-gated lessons cover channels, messages, threads, reactions, mentions, search, notifications, and community safety. Typed messages remain in the browser; the simulator never connects to Slack.
+Nine short, action-gated lessons cover channels, messages, pings, DMs, threads, reactions, search, notifications, and community safety. Typed messages remain in the browser; the simulator never connects to Slack.
 
 The design follows Hack Club's existing onboarding conventions:
 
@@ -33,7 +33,7 @@ program:
 training:
   channel_target: my-program
   practice_channel: my-program
-  lessons: [channels, messages, threads, reactions, mentions, search, notifications, safety]
+  lessons: [channels, messages, search, notifications, safety]
 
 channels:
   # Channels Hack Club Auth will assign during Slack provisioning. Sections
@@ -55,6 +55,8 @@ completion:
 
 Configuration is loaded and validated at runtime by [`src/program.ts`](src/program.ts). Progress is stored per program in `localStorage`.
 
+`pings`, `dms`, `threads`, and `reactions` are internal platform lessons. They are added to every program automatically and should not be repeated in program YAML. The `lessons` list only controls the program-selectable lessons around those shared Slack basics.
+
 The `default` list should mirror the program's `slack_channels` plus `promotion_channels` in Hack Club Auth. The loader requires `completion.entry_channel` to be present there, preventing a guide from sending someone to a channel they will not receive.
 
 ## Use it inside another flow
@@ -73,5 +75,5 @@ After the last lesson, the simulator emits a `hackclub:onboarding-complete` brow
 npm install
 npm run dev
 npm run check       # unit tests + production build
-npm run test:e2e    # all eight lessons in Chromium
+npm run test:e2e    # all nine lessons in Chromium
 ```
