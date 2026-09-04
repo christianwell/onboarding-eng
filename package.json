@@ -12,12 +12,13 @@
     "check": "npm run test && npm run build"
   },
   "dependencies": {
+    "@plausible-analytics/tracker": "^0.4.6",
     "@vitejs/plugin-react": "4.4.1",
-    "vite": "6.4.3",
-    "yaml": "latest",
     "lucide-react": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "vite": "6.4.3",
+    "yaml": "latest"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
