@@ -100,3 +100,9 @@ npm run dev
 npm run check       # unit tests + production build
 npm run test:e2e    # all nine lessons in Chromium
 ```
+
+## Credits
+
+Built by [@christianwell](https://github.com/christianwell).
+
+Copy and wording contributions from [@wally-hc](https://github.com/wally-hc).
