@@ -56,9 +56,9 @@ const guideAssets = {
 
 const lessonCopy: Record<LessonId, { eyebrow: string; title: string; body: string; task: string; hint: string }> = {
   channels: {
-    eyebrow: 'Find your crew',
+    eyebrow: 'Find your place',
     title: 'Channels keep conversations organized',
-    body: 'Every channel has a topic. Program channels are your home base; community channels help you find people who build what you build.',
+    body: 'Every channel has a topic. Program channels are where you ask questions; community channels help you find people who build what you build.',
     task: 'Open the sidebar, then choose #stardance.',
     hint: 'Look in the flat “Channels” list.',
   },
@@ -67,47 +67,47 @@ const lessonCopy: Record<LessonId, { eyebrow: string; title: string; body: strin
     title: 'Send your first message',
     body: 'Messages in public channels can be seen by everyone there. Be specific, kind, and give people enough context to respond.',
     task: 'Introduce yourself in #stardance.',
-    hint: 'Try: “Hey! I’m building a tiny game this summer 🚀”',
+    hint: 'Try: “Hey! I\'m new here, what is this channel about?”',
   },
   threads: {
-    eyebrow: 'Keep it tidy',
+    eyebrow: 'Keep it organized',
     title: 'Replies belong in threads',
-    body: 'A thread keeps a side conversation attached to its original message, so the channel stays easy to scan.',
+    body: 'A thread keeps a side conversation attached to its original message, so the channel stays easy to scan. Replies in a thread should stay within the topic of the original message.',
     task: 'Open Nova’s thread and send a reply.',
-    hint: 'Choose “2 replies” below Nova’s message.',
+    hint: 'Click “2 replies” below Nova’s message.',
   },
   reactions: {
     eyebrow: 'Respond quickly',
     title: 'Reactions say a lot without noise',
-    body: 'Use emoji to celebrate, agree, acknowledge, or vote without adding another message to the channel.',
+    body: 'Reactions are a great way to communicate without adding more messages, and the Hack Club slack has plenty of custom emojis to react with!',
     task: 'Add a ⭐ reaction to a project update.',
-    hint: 'Choose the smile-plus button on Nova’s message.',
+    hint: 'Click the smile-plus button on Nova’s message.',
   },
   pings: {
     eyebrow: 'Ping with care',
-    title: 'Pings are for the right person',
-    body: 'Choosing someone from the @ menu sends them a notification. Ping a person when they need to see the message, and avoid @channel or @here unless everyone truly needs it.',
+    title: 'Ping only when necessary',
+    body: 'Choosing someone from the @ menu sends them a notification. Ping a person when they need to see the message!',
     task: 'Use the @ button to choose Nova, then send them a helpful message.',
     hint: 'Choose the @ button below the message box, then select Nova from the menu.',
   },
   dms: {
-    eyebrow: 'Talk one-to-one',
+    eyebrow: 'Talk privately',
     title: 'Send Christian a direct message',
-    body: 'DMs are private conversations between the people included. They’re useful for personal details or a quick one-to-one question—not for answers the whole channel could use.',
+    body: 'DMs are private conversations between the people included. They’re useful for personal details or a quick one-to-one question.',
     task: 'Use Search Hack Club to find Christian and open their account.',
-    hint: 'Choose the search bar at the top and type “Christian”.',
+    hint: 'Click the search bar at the top and type “Christian”.',
   },
   search: {
     eyebrow: 'Find anything',
     title: 'Search before asking again',
-    body: 'Hack Club has years of useful answers. Search finds messages, people, and channels; modifiers like in:channel narrow things down.',
+    body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure your question hasn\'t been answered already.',
     task: 'Search for “hardware help”.',
     hint: 'Use the search bar at the very top.',
   },
   notifications: {
-    eyebrow: 'Protect your focus',
+    eyebrow: 'Customize your pings',
     title: 'Make notifications work for you',
-    body: 'Busy communities move fast. “Mentions & DMs” keeps important pings while letting you catch up on channels when you choose.',
+    body: 'Busy channels move fast. Setting your notifications to “Mentions & DMs” keeps important pings while letting you catch up on channels when you choose!',
     task: 'Set notifications to “Mentions & DMs”.',
     hint: 'Open the bell in the channel header.',
   },
@@ -127,7 +127,7 @@ function makeInitialMessages(config: ProgramConfig): Message[] {
     avatar: 'O',
     color: '#e95d8f',
     time: '9:41 AM',
-    body: `Welcome! 🌟 This is the place for ${config.program.name} updates, questions, and meeting other makers. What are you excited to build?`,
+    body: `Welcome! This is the place for ${config.program.name} questions and discussions. What are you planning to build?`,
     bot: true,
   },
   {
@@ -136,7 +136,7 @@ function makeInitialMessages(config: ProgramConfig): Message[] {
     avatar: 'N',
     color: '#3f88c5',
     time: '9:44 AM',
-    body: 'Just shipped the first screen of my constellation game! The stars connect when you move your cursor. Still figuring out sound effects ✨',
+    body: 'I just shipped the first screen of my constellation game! The stars literally connect when you move your cursor. Still figuring out sound effects...',
     reactions: 3,
     replies: 2,
   },
@@ -146,7 +146,7 @@ function makeInitialMessages(config: ProgramConfig): Message[] {
     avatar: 'M',
     color: '#ef8354',
     time: '9:47 AM',
-    body: 'That sounds so cool! I’m working on a plant-watering sensor. Happy to trade feedback with anyone building hardware.',
+    body: 'That sounds so cool! I’m working on a plant-watering sensor. Can I get some feedback on it?',
   },
   {
     id: 4,
@@ -163,7 +163,7 @@ function makeInitialMessages(config: ProgramConfig): Message[] {
     avatar: 'P',
     color: '#9c6ade',
     time: '9:55 AM',
-    body: 'Does anyone want to co-work later? I’m learning Godot and could use another set of eyes on a movement bug.',
+    body: 'Does anyone want to start a new project together? There\'s this one game idea that I really want to try, but I need help with the graphics.',
   },
   {
     id: 6,
@@ -171,7 +171,7 @@ function makeInitialMessages(config: ProgramConfig): Message[] {
     avatar: 'O',
     color: '#e95d8f',
     time: '10:01 AM',
-    body: 'Reminder: unfinished work is welcome here. Share early, ask questions, and tell us what you already tried 💫',
+    body: 'What is everyone working on? I’m curious to see what you’re building and how it’s going!',
     bot: true,
   }]
 }
@@ -183,7 +183,7 @@ function makeDirectMessages(name = 'Christian'): Message[] {
     avatar: name[0],
     color: '#ec3750',
     time: '10:04 AM',
-    body: name === 'Christian' ? 'Hey! Welcome to Hack Club 👋 What are you excited to make?' : `Hey! It’s ${name} 👋`,
+    body: name === 'Christian' ? 'welcome to the community of hack club!!: `Hey! It’s ${name}`,
   }]
 }
 
@@ -473,14 +473,14 @@ function App() {
   const channelPurpose = useMemo(() => {
     if (directMessage) return `A private conversation with ${directMessage}.`
     if (config && channel === config.completion.entry_channel) return config.program.tagline
-    if (channel === 'welcome-to-hack-club') return 'Meet other new members and ask a Hack Club Gardener when you need a hand.'
-    if (channel === 'slack-guide') return 'Learn the basics and find your way around Hack Club Slack.'
+    if (channel === 'welcome-to-hack-club') return 'Meet other new members and ask a Hack Club Gardener when you need a hand!'
+    if (channel === 'slack-guide') return 'Learn the basics and find your way around the Hack Club Slack!'
     if (channel === 'planet') return `Share ${config?.program.name ?? 'program'} projects, progress, and inspiration.`
     if (channel.includes('bulletin') || channel.includes('announcements')) return 'Official updates worth keeping an eye on.'
-    if (channel.includes('help')) return 'Ask questions and help other makers get unstuck.'
-    if (channel === 'scrapbook') return 'Share a daily photo or update from your creative life.'
-    if (channel === 'code') return 'Get help with code across the Hack Club community.'
-    if (channel === 'hardware') return 'Circuits, CAD, soldering, and everything you can touch.'
+    if (channel.includes('help')) return 'Ask questions and help other Hack Clubbers!'
+    if (channel === 'scrapbook') return 'Pick a subject and learn about it every day! Share updates here and get a custom, beautiful site generated at https://scrapbook.hackclub.com!'
+    if (channel === 'code') return 'Discuss and get help with anything coding related! (No, your math homework doesn\'t count. Maybe it should actually...)'
+    if (channel === 'hardware') return 'The hardware haven, get help with your hardware projects!'
     return 'Your friendly launchpad into the Hack Club community.'
   }, [channel, config, directMessage])
 
@@ -550,8 +550,8 @@ function App() {
         {!directMessage && <nav className="channel-tabs" aria-label="Channel tabs">
           <button className="active"><MessageCircle size={15} /> Messages</button>
           <button>Your Guide to using Slack</button>
-          <button>🔵 Cool HC channels you should join</button>
-          <button>🌈 What’s on right now?</button>
+          <button>Public and active personal channels you can join</button>
+          <button>Read the newest edition of #happenings</button>
           <button><FileText size={15} /> Files & links</button>
           <button><Star size={15} /> Pins</button>
         </nav>}
@@ -603,7 +603,7 @@ function App() {
         {!introComplete ? <div className="lesson-card guide-intro">
           <p className="lesson-eyebrow">Welcome to {config.program.name}</p>
           <h2><span>👋</span>Let’s get you settled in</h2>
-          <p className="lesson-body">Hack Club’s Slack is where makers meet, share what they’re building, and help each other get unstuck. Practice here first; then Hack Club Auth will create your account and add your starter channels.</p>
+          <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! Practice here first; then Hack Club Auth will create your account and add your starter channels.</p>
           <div className="intro-facts"><span><Clock3 size={14} /> About 5 minutes</span><span><Hash size={14} /> {defaultChannels.length} starter channels</span><span><ShieldCheck size={14} /> Nothing gets posted</span></div>
         </div> : <div className="lesson-card">
           <p className="lesson-eyebrow">{config.program.name} · Mission {lessonIndex + 1} · {activeCopy!.eyebrow}</p>
