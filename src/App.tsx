@@ -183,7 +183,7 @@ function makeDirectMessages(name = 'Christian'): Message[] {
     avatar: name[0],
     color: '#ec3750',
     time: '10:04 AM',
-    body: name === 'Christian' ? 'Hii! Did you see the new programs?? Stardance seems really good' : `Hey! It’s ${name}`,
+    body: name === 'Christian' ? 'welcome to the community of hack club!!: `Hey! It’s ${name}`,
   }]
 }
 
