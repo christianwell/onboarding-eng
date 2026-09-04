@@ -100,7 +100,7 @@ const lessonCopy: Record<LessonId, { eyebrow: string; title: string; body: strin
   search: {
     eyebrow: 'Find anything',
     title: 'Search before asking again',
-    body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure youor question hasn\'t been answered already.',
+    body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure your question hasn\'t been answered already.',
     task: 'Search for “hardware help”.',
     hint: 'Use the search bar at the very top.',
   },
