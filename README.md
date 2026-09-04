@@ -71,6 +71,27 @@ Send someone into onboarding with an encoded `return_to` URL:
 
 After the last lesson, the simulator emits a `hackclub:onboarding-complete` browser event and, when embedded, a `postMessage` with the program and entry channel. It then redirects back to `return_to` with `onboarding=complete&program=stardance` added. Return destinations must be listed in `completion.return_origins`; missing or untrusted destinations fall back to `completion.auth_url`.
 
+## Analytics
+
+The app sends privacy-friendly pageviews and conversion events to Plausible. Register the production hostname as a site in Plausible; no script tag or API key is required. Localhost is ignored automatically.
+
+Create custom event goals with these exact names:
+
+- `Onboarding Started`, `Onboarding Resumed`, and `Onboarding Completed`
+- `Lesson Completed: Channels`, `Lesson Completed: Messages`, `Lesson Completed: Pings`, `Lesson Completed: Direct Messages`, `Lesson Completed: Threads`, `Lesson Completed: Reactions`, `Lesson Completed: Search`, `Lesson Completed: Notifications`, and `Lesson Completed: Safety`
+- `Flow Details Completed`, `Flow Onboarding Started`, and `Flow Onboarding Returned`
+- `Campaign Config Copied`, `Campaign Config Downloaded`, and `Campaign Draft Reset`
+
+Plausible funnels support at most eight steps and require the Business plan. Recommended sequential funnels:
+
+1. **Onboarding overview:** `Onboarding Started` → Channels → Direct Messages → Threads → Search → Safety → `Onboarding Completed`
+2. **Lessons 1–5:** `Onboarding Started` → Channels → Messages → Pings → Direct Messages → Threads
+3. **Lessons 5–9:** Threads → Reactions → Search → Notifications → Safety → `Onboarding Completed`
+4. **Round trip:** `Flow Details Completed` → `Flow Onboarding Started` → `Onboarding Completed` → `Flow Onboarding Returned`
+5. **Campaign export:** pageview `/program-builder` → `Campaign Config Copied` or `Campaign Config Downloaded` (make one funnel for each ending)
+
+Use sequential funnels so normal activity between lessons does not disqualify a visitor. Events include only program, lesson position, counts, and handoff type—never entered names, messages, projects, or campaign text.
+
 ## Develop and verify
 
 ```sh

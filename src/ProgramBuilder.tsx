@@ -1,6 +1,7 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { stringify } from 'yaml'
 import { Check, CheckCircle2, Clipboard, Download, ExternalLink, FileCode2, FolderOpen, LockKeyhole, Plus, Rocket, Settings2 } from 'lucide-react'
+import { trackEvent } from './analytics'
 import { LessonId, ProgramConfig, internalLessonIds, validateProgram } from './program'
 import './program-builder.css'
 
@@ -173,6 +174,10 @@ function ProgramBuilder() {
 
   const copyYaml = async () => {
     await navigator.clipboard.writeText(yaml)
+    trackEvent('Campaign Config Copied', {
+      channels: String(channels.length),
+      lessons: String(config.training.lessons.length),
+    })
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1800)
   }
@@ -184,6 +189,15 @@ function ProgramBuilder() {
     link.download = 'config.yaml'
     link.click()
     URL.revokeObjectURL(url)
+    trackEvent('Campaign Config Downloaded', {
+      channels: String(channels.length),
+      lessons: String(config.training.lessons.length),
+    })
+  }
+
+  const resetDraft = () => {
+    trackEvent('Campaign Draft Reset')
+    setDraft(initialDraft)
   }
 
   return <main className="builder-site">
@@ -196,7 +210,7 @@ function ProgramBuilder() {
       <aside className="builder-sidebar">
         <p>Campaign draft</p>
         <button className="active"><span style={{ background: draft.color }}>{draft.name.slice(0, 1) || '?'}</span><div><strong>{draft.name || 'Untitled campaign'}</strong><small>Draft · {channels.length} channels</small></div></button>
-        <button className="new-campaign" onClick={() => setDraft(initialDraft)}><Plus /> Start over</button>
+        <button className="new-campaign" onClick={resetDraft}><Plus /> Start over</button>
         <div className="builder-help"><FileCode2 /><strong>Configuration as code</strong><p>This builder creates the same reviewed YAML file used by every onboarding campaign.</p></div>
       </aside>
 

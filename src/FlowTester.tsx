@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { ArrowRight, Check, ExternalLink, MessageSquare, RotateCcw, Sparkles } from 'lucide-react'
+import { trackEvent } from './analytics'
 import './flow-tester.css'
 
 function FlowTester() {
@@ -13,6 +14,7 @@ function FlowTester() {
 
   useEffect(() => {
     document.title = 'Stardance Application · Flow Tester'
+    if (returnedComplete) trackEvent('Flow Onboarding Returned', { program: 'stardance' })
   }, [])
 
   const continueToSlack = (event: FormEvent) => {
@@ -20,12 +22,14 @@ function FlowTester() {
     if (!name.trim() || !project.trim()) return
     sessionStorage.setItem('flow-tester:name', name.trim())
     sessionStorage.setItem('flow-tester:project', project.trim())
+    trackEvent('Flow Details Completed', { program: 'stardance' })
     window.location.assign(`${basePath}flow-tester?step=slack`)
   }
 
   const startOnboarding = () => {
     localStorage.removeItem('onboarding:stardance')
     const returnTo = new URL(`${basePath}flow-tester?step=slack`, window.location.origin).toString()
+    trackEvent('Flow Onboarding Started', { program: 'stardance' })
     window.location.assign(`${basePath}program/stardance?return_to=${encodeURIComponent(returnTo)}`)
   }
 

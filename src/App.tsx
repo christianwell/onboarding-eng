@@ -32,6 +32,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { trackEvent, trackLessonCompleted } from './analytics'
 import { getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig } from './program'
 
 type Message = {
@@ -237,7 +238,13 @@ function App() {
         const firstIncomplete = config.training.lessons.findIndex((lesson) => !currentLessons.includes(lesson))
         setCompleted(currentLessons)
         setLessonIndex(firstIncomplete === -1 ? config.training.lessons.length - 1 : firstIncomplete)
-        if (currentLessons.length > 0) setIntroComplete(true)
+        if (currentLessons.length > 0) {
+          trackEvent('Onboarding Resumed', {
+            program: config.program.slug,
+            lessons_completed: String(currentLessons.length),
+          })
+          setIntroComplete(true)
+        }
       }
     } catch {
       localStorage.removeItem(`onboarding:${config.program.slug}`)
@@ -273,6 +280,10 @@ function App() {
   useEffect(() => {
     if (!allComplete || !config) return
 
+    trackEvent('Onboarding Completed', {
+      program: config.program.slug,
+      handoff: returnsToFlow ? 'return' : 'auth',
+    })
     const completion = {
       type: 'hackclub:onboarding-complete',
       program: config.program.slug,
@@ -284,7 +295,7 @@ function App() {
 
     const redirect = window.setTimeout(() => window.location.assign(completionUrl), 2500)
     return () => window.clearTimeout(redirect)
-  }, [allComplete, completionUrl, config])
+  }, [allComplete, completionUrl, config, returnsToFlow])
 
   useLayoutEffect(() => {
     if (allComplete) return
@@ -382,6 +393,12 @@ function App() {
     const next = [...completed, lesson]
     setCompleted(next)
     localStorage.setItem(`onboarding:${config.program.slug}`, JSON.stringify({ completed: next }))
+    trackLessonCompleted(lesson, config.program.slug, lessonIndex + 1, lessons.length)
+  }
+
+  const startOnboarding = () => {
+    trackEvent('Onboarding Started', { program: config!.program.slug })
+    setIntroComplete(true)
   }
 
   const selectChannel = (name: string) => {
@@ -603,7 +620,7 @@ function App() {
           {isActiveComplete && <div className="success-box"><CheckCircle2 /><div><strong>Mission complete!</strong><span>{allLessonsComplete ? 'Everything’s complete. Finish when you’re ready.' : 'Nice work. Your next skill is ready.'}</span></div></div>}
         </div>}
         <div className="guide-actions">
-          {!introComplete ? <button className="next-button" onClick={() => setIntroComplete(true)}>Let’s get started <ChevronRight size={16} /></button> : <div>
+          {!introComplete ? <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button> : <div>
               {lessonIndex > 0 && <button className="guide-ghost" onClick={() => setLessonIndex((value) => value - 1)}>← Back</button>}
               {isActiveComplete && !allLessonsComplete && <button className="next-button" aria-label="Next mission" onClick={goNext}>Next <ChevronRight size={16} /></button>}
               {isActiveComplete && allLessonsComplete && <button className="next-button" onClick={() => setFinished(true)}>Complete onboarding <ChevronRight size={16} /></button>}
