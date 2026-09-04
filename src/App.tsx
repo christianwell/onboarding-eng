@@ -100,7 +100,7 @@ const lessonCopy: Record<LessonId, { eyebrow: string; title: string; body: strin
   search: {
     eyebrow: 'Find anything',
     title: 'Search before asking again',
-    body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure youor question hasn\'t been answered already.',
+    body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure your question hasn\'t been answered already.',
     task: 'Search for “hardware help”.',
     hint: 'Use the search bar at the very top.',
   },
@@ -183,7 +183,7 @@ function makeDirectMessages(name = 'Christian'): Message[] {
     avatar: name[0],
     color: '#ec3750',
     time: '10:04 AM',
-    body: name === 'Christian' ? 'Hii! Did you see the new programs?? Stardance seems really good' : `Hey! It’s ${name}`,
+    body: name === 'Christian' ? 'welcome to the community of hack club!!: `Hey! It’s ${name}`,
   }]
 }
 
