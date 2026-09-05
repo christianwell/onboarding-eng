@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/christianwell/onboarding-eng/actions/workflows/pr-checks.yml"><img alt="PR checks" src="https://github.com/christianwell/onboarding-eng/actions/workflows/pr-checks.yml/badge.svg"></a>
+  <a href="https://uptime.christianwell.xyz/status/onboarding-eng"><img alt="Service status" src="https://uptime.christianwell.xyz/api/badge/2/status"></a>
   <img alt="React" src="https://img.shields.io/badge/React-61dafb?logo=react&logoColor=black">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white">
   <img alt="Vite" src="https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white">
@@ -27,5 +28,4 @@
     <img src="https://contrib.rocks/image?repo=christianwell/onboarding-eng" alt="Contributors" />
   </a>
 </p>
-
 
