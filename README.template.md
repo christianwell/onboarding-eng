@@ -1,52 +1,61 @@
 # [Project name]
 
-<!-- Replace the bracketed placeholders with your own text. Copy this into README.md when ready. -->
+<!-- Fill in the placeholders yourself, then copy this into README.md.
+     Layout inspired by democracycraft-plus. Delete sections you do not need. -->
 
-[![PR checks](https://github.com/christianwell/onboarding-eng/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/christianwell/onboarding-eng/actions/workflows/pr-checks.yml)
-[![Contributors](https://img.shields.io/github/contributors/christianwell/onboarding-eng)](https://github.com/christianwell/onboarding-eng/graphs/contributors)
+<!-- Add your logo to the repository and uncomment this block.
+<p align="center">
+  <img src="docs/images/logo.png" width="128" alt="Project logo">
+</p>
+-->
 
-[Write a short sentence explaining what this project does.]
+<p align="center">
+  [Your short project tagline.]
+</p>
 
-<!-- Optional: add your live demo URL here. -->
-<!-- [Try it out](https://your-demo-url) -->
+<p align="center">
+  <a href="https://github.com/christianwell/onboarding-eng/actions/workflows/pr-checks.yml"><img alt="PR checks" src="https://github.com/christianwell/onboarding-eng/actions/workflows/pr-checks.yml/badge.svg"></a>
+  <img alt="React" src="https://img.shields.io/badge/React-61dafb?logo=react&logoColor=black">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white">
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white">
+  <a href="https://github.com/christianwell/onboarding-eng/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/christianwell/onboarding-eng"></a>
+</p>
 
-## Contents
+[Introduce the project in a short paragraph: what it does, who it helps, and why you built it.]
 
-- [About](#about)
-- [Preview](#preview)
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Usage](#usage)
-- [Built with](#built-with)
-- [Contributing](#contributing)
-- [Contributors](#contributors)
-- [Acknowledgements](#acknowledgements)
-- [License](#license)
+## Highlights
 
-## About
+| | Feature | What it does |
+| --- | --- | --- |
+| 💬 | **[Feature name]** | [Short description.] |
+| 🎨 | **[Feature name]** | [Short description.] |
+| 🧩 | **[Feature name]** | [Short description.] |
 
-[What are you building, who is it for, and why did you make it?]
+## Gallery
 
-## Preview
+### [Screenshot title]
 
-<!-- Add a screenshot or GIF to the repository, then uncomment and update this line. -->
-<!-- ![Describe what the screenshot shows](docs/images/preview.png) -->
+[Briefly explain what this view shows.]
 
-## Features
+<!-- Add your screenshot, then uncomment and update this line. -->
+<!-- ![Describe the screenshot](docs/images/preview.png) -->
 
-- [Feature one]
-- [Feature two]
-- [Feature three]
+### [Another screenshot title]
 
-## Getting started
+<!-- Optional second screenshot. -->
+<!-- ![Describe the screenshot](docs/images/another-preview.png) -->
+
+## Try it out
+
+[Add your live site link and explain how to get started.]
+
+## Run locally
 
 ### Requirements
 
-[List the software and versions someone needs.]
+[Add the Node.js version and any other requirements.]
 
-### Installation
-
-<!-- These commands match this repository. Add any other setup steps needed. -->
+<!-- These commands match this repository. -->
 
 ```sh
 git clone https://github.com/christianwell/onboarding-eng.git
@@ -55,35 +64,37 @@ npm ci
 npm run dev
 ```
 
-[Explain which URL to open and any configuration needed.]
+[Explain which URL to open and any additional setup.]
 
-### Checks
+## How it works
+
+### [Main feature or flow]
+
+[Explain this part of the project in your own words.]
+
+### [Configuration or customization]
+
+[Explain what someone can change and how.]
+
+## Build and test
 
 ```sh
+# Production build
+npm run build
+
 # Unit tests and production build
 npm run check
 
-# Install the browser needed for end-to-end tests
+# Install Chromium and run browser tests
 npx playwright install chromium
-
-# Run browser tests
 npm run test:e2e
 ```
 
-## Usage
-
-[Explain how to use the project. Add examples or steps here.]
-
-## Built with
-
-[List the main technologies and what you use them for.]
+[Add any extra development notes here.]
 
 ## Contributing
 
-[Explain what help you would like and how people should contribute.]
-
-<!-- Suggested topics: opening an issue, creating a branch, running checks,
-     submitting a pull request, and including screenshots for visual changes. -->
+[Explain what help you welcome and how to submit changes.]
 
 [Report a bug or suggest a feature](https://github.com/christianwell/onboarding-eng/issues)
 
@@ -118,10 +129,8 @@ npm run test:e2e
 
 ## Acknowledgements
 
-[Credit any inspiration, resources, assets, or other projects.]
+[Credit inspirations, assets, and other projects.]
 
 ## License
 
-[Add the chosen license and a link to the license file once one exists.]
-
-<!-- Delete any sections you do not need before publishing your README. -->
+[Add your chosen license and link to its file once one exists.]
