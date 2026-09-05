@@ -26,7 +26,7 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
 
   await page.getByLabel('Message stardance').fill('@Nova typed without choosing a person')
   await page.getByRole('button', { name: 'Send message' }).click()
-  await expect(page.getByRole('heading', { name: /pings are for the right person/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /ping only when necessary/i })).toBeVisible()
   await expect(page.getByText('Mission complete!')).toHaveCount(0)
   await page.getByRole('button', { name: /mention someone/i }).click()
   await page.getByRole('option', { name: /Nova/i }).click()
