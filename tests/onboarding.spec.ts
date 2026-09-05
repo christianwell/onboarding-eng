@@ -53,8 +53,8 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
   await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
-  await expect(page.getByText('3 results for')).toBeVisible()
-  await page.getByRole('button', { name: /hardware.*Jules/i }).click()
+  await expect(page.getByText(/results? for “hardware help”/)).toBeVisible()
+  await page.locator('.message-search-results > button').filter({ hasText: 'hardware' }).click()
   await page.getByRole('button', { name: /next mission/i }).click()
 
   await page.getByRole('button', { name: 'Notification settings' }).click()
@@ -123,6 +123,16 @@ test('loads the general Hack Club Slack preset', async ({ page }) => {
   await expect(page.getByLabel('Message lounge')).toBeVisible()
 })
 
+test('redirects unknown program and error routes to Hack Club', async ({ page }) => {
+  await page.route('https://hackclub.com/', (route) => route.fulfill({
+    contentType: 'text/html',
+    body: '<h1>Hack Club</h1>',
+  }))
+  await page.goto('/program/not-a-real-program')
+  await expect(page).toHaveURL('https://hackclub.com/')
+  await expect(page.getByRole('heading', { name: 'Hack Club' })).toBeVisible()
+})
+
 test('uses the configured help channel in general Slack search results', async ({ page }) => {
   await page.goto('/program/slack')
   await page.evaluate(() => localStorage.setItem('onboarding:slack', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions'] })))
@@ -132,8 +142,59 @@ test('uses the configured help channel in general Slack search results', async (
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
   await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
-  await expect(page.getByRole('button', { name: /help.*Orbit/i })).toBeVisible()
+  await expect(page.locator('.message-search-results > button').filter({ hasText: 'help' })).toBeVisible()
   await expect(page.getByText('stardance-help', { exact: true })).toHaveCount(0)
+})
+
+test('supports canvases, channel discovery, read-only channels, and scoped search', async ({ page }) => {
+  await page.goto('/program/stardance')
+  await page.addStyleTag({ content: '.coach, .guide-dim, .guide-spotlight, .guide-arrow { display: none !important; }' })
+
+  await page.getByRole('button', { name: 'Your Guide to using Slack' }).click()
+  await expect(page.getByRole('heading', { name: 'Your Guide to using Slack' })).toBeVisible()
+  await expect(page.getByText('Channels keep conversations organized')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Discover channels' }).click()
+  await expect(page.getByRole('heading', { name: 'Public and active personal channels you can join' })).toBeVisible()
+  await expect(page.locator('.channel-list').getByRole('button', { name: 'hardware', exact: true })).toHaveCount(0)
+  await page.locator('.discovery-list article').filter({ hasText: 'hardware' }).getByRole('button', { name: 'Join channel' }).click()
+  await expect(page.locator('.discovery-list article').filter({ hasText: 'hardware' }).getByRole('button', { name: 'Joined' })).toBeDisabled()
+  await expect(page.locator('.channel-list').getByRole('button', { name: 'hardware', exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'announcements', exact: true }).click()
+  await expect(page.getByText('Only certain people can post in this channel')).toBeVisible()
+  await expect(page.getByLabel('Message announcements')).toHaveCount(0)
+
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('in:hardware')
+  await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
+  await expect(page.getByText('In: hardware')).toBeVisible()
+  await expect(page.locator('.message-search-results > button').filter({ hasText: 'hardware' })).toBeVisible()
+})
+
+test('routes identity questions through its FAQ canvas', async ({ page }) => {
+  await page.goto('/program/stardance')
+  await page.addStyleTag({ content: '.coach, .guide-dim, .guide-spotlight, .guide-arrow { display: none !important; }' })
+  await page.getByRole('button', { name: 'identity-help', exact: true }).click()
+  await page.getByRole('button', { name: 'Identity FAQ' }).click()
+  await expect(page.getByRole('heading', { name: 'Identity FAQ' })).toBeVisible()
+})
+
+test('models the reusable YSWS support-ticket flow', async ({ page }) => {
+  await page.goto('/program/stardance')
+  await page.addStyleTag({ content: '.coach, .guide-dim, .guide-spotlight, .guide-arrow { display: none !important; }' })
+  await page.locator('.channel-list').getByText('stardance-help', { exact: true }).click()
+
+  await page.getByLabel('Message stardance-help').fill('Where can I find the FAQ?')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await page.getByRole('button', { name: /1 reply/i }).click()
+  await expect(page.getByText('Heidi the Astronaut')).toBeVisible()
+  await page.getByRole('button', { name: 'Mark as resolved' }).click()
+  await expect(page.getByRole('button', { name: 'Resolved' })).toBeDisabled()
+
+  await page.locator('.thread-faq-link').click()
+  await expect(page.getByRole('heading', { name: 'Stardance Challenge FAQ' })).toBeVisible()
+  await expect(page.getByText('What is the Stardance Challenge?')).toBeVisible()
 })
 
 test('builds and downloads a campaign config', async ({ page }) => {
@@ -145,6 +206,18 @@ test('builds and downloads a campaign config', async ({ page }) => {
   await expect(page.getByLabel('URL slug')).toHaveValue('moonshot')
   await expect(page.locator('.builder-preview pre')).toContainText('slug: moonshot')
   await expect(page.locator('.builder-preview pre')).toContainText('moonshot-help')
+  await expect(page.locator('.builder-preview pre')).toContainText('read_only:')
+  await page.getByLabel('Title').fill('Channels are organized by topic')
+  await expect(page.locator('.builder-preview pre')).toContainText('Channels are organized by topic')
+
+  await page.getByRole('button', { name: 'Support', exact: true }).click()
+  await page.getByLabel('Bot name').fill('Program Support')
+  await page.getByLabel('Acknowledgement').fill('Hi {{author}} — the {{program}} team received your question.')
+  await page.getByLabel('FAQ title').fill('Moonshot FAQ')
+  await page.getByLabel('FAQ introduction').fill('Read this first.')
+  await page.getByLabel('FAQ questions and answers').fill('When are reviews? | Check the published schedule.')
+  await expect(page.locator('.builder-preview pre')).toContainText('bot_name: Program Support')
+  await expect(page.locator('.builder-preview pre')).toContainText('faq_title: Moonshot FAQ')
   await expect(page.getByText('public/programs/moonshot/logo.svg')).toBeVisible()
   await expect(page.getByText('Pings · Direct messages · Threads · Reactions')).toBeVisible()
   await page.reload()

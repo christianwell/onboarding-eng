@@ -38,6 +38,9 @@ channels:
     - happenings
     - neighbourhood
     - library
+  read_only:
+    - announcements
+    - news-wire
 
 completion:
   auth_url: "https://auth.hackclub.com/slack"

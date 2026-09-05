@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
+  ArrowRight,
   AtSign,
   Bell,
   BellRing,
@@ -17,8 +19,9 @@ import {
   Menu,
   MessageCircle,
   MessagesSquare,
+  Mic,
+  Moon,
   MoreHorizontal,
-  Paperclip,
   Plus,
   Rocket,
   Search,
@@ -30,10 +33,11 @@ import {
   SquarePen,
   Star,
   UserRound,
+  Video,
   X,
 } from 'lucide-react'
 import { trackEvent, trackLessonCompleted } from './analytics'
-import { getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig } from './program'
+import { defaultLessonCopy, getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig } from './program'
 
 type Message = {
   id: number
@@ -45,79 +49,23 @@ type Message = {
   reactions?: number
   replies?: number
   bot?: boolean
+  pinned?: boolean
+  reactionEmoji?: string
+  extraReactions?: { emoji: string; count: number }[]
+  attachment?: {
+    eyebrow: string
+    title: string
+    description: string
+    url?: string
+  }
 }
 
 type OverlayRect = { left: number; top: number; width: number; height: number }
+type ChannelView = 'messages' | 'guide' | 'discover' | 'whats-on' | 'support' | 'faq' | 'files' | 'pins'
 
 const guideAssets = {
   flag: 'https://raw.githubusercontent.com/christianwell/welcome-to-slack/main/assets/flag-orpheus.svg',
   mascot: 'https://raw.githubusercontent.com/christianwell/welcome-to-slack/main/assets/orpheus-wink.png',
-}
-
-const lessonCopy: Record<LessonId, { eyebrow: string; title: string; body: string; task: string; hint: string }> = {
-  channels: {
-    eyebrow: 'Find your place',
-    title: 'Channels keep conversations organized',
-    body: 'Every channel has a topic. Program channels are where you ask questions; community channels help you find people who build what you build.',
-    task: 'Open the sidebar, then choose #stardance.',
-    hint: 'Look in the flat “Channels” list.',
-  },
-  messages: {
-    eyebrow: 'Say hello',
-    title: 'Send your first message',
-    body: 'Messages in public channels can be seen by everyone there. Be specific, kind, and give people enough context to respond.',
-    task: 'Introduce yourself in #stardance.',
-    hint: 'Try: “Hey! I\'m new here, what is this channel about?”',
-  },
-  threads: {
-    eyebrow: 'Keep it organized',
-    title: 'Replies belong in threads',
-    body: 'A thread keeps a side conversation attached to its original message, so the channel stays easy to scan. Replies in a thread should stay within the topic of the original message.',
-    task: 'Open Nova’s thread and send a reply.',
-    hint: 'Click “2 replies” below Nova’s message.',
-  },
-  reactions: {
-    eyebrow: 'Respond quickly',
-    title: 'Reactions say a lot without noise',
-    body: 'Reactions are a great way to communicate without adding more messages, and the Hack Club slack has plenty of custom emojis to react with!',
-    task: 'Add a ⭐ reaction to a project update.',
-    hint: 'Click the smile-plus button on Nova’s message.',
-  },
-  pings: {
-    eyebrow: 'Ping with care',
-    title: 'Ping only when necessary',
-    body: 'Choosing someone from the @ menu sends them a notification. Ping a person when they need to see the message!',
-    task: 'Use the @ button to choose Nova, then send them a helpful message.',
-    hint: 'Choose the @ button below the message box, then select Nova from the menu.',
-  },
-  dms: {
-    eyebrow: 'Talk privately',
-    title: 'Send Christian a direct message',
-    body: 'DMs are private conversations between the people included. They’re useful for personal details or a quick one-to-one question.',
-    task: 'Use Search Hack Club to find Christian and open their account.',
-    hint: 'Click the search bar at the top and type “Christian”.',
-  },
-  search: {
-    eyebrow: 'Find anything',
-    title: 'Search before asking again',
-    body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure your question hasn\'t been answered already.',
-    task: 'Search for “hardware help”.',
-    hint: 'Use the search bar at the very top.',
-  },
-  notifications: {
-    eyebrow: 'Customize your pings',
-    title: 'Make notifications work for you',
-    body: 'Busy channels move fast. Setting your notifications to “Mentions & DMs” keeps important pings while letting you catch up on channels when you choose!',
-    task: 'Set notifications to “Mentions & DMs”.',
-    hint: 'Open the bell in the channel header.',
-  },
-  safety: {
-    eyebrow: 'Keep Hack Club kind',
-    title: 'Know what to do when something feels wrong',
-    body: 'Hack Club holds everyone to a high standard. Don’t engage with harassment or share private information. The moderation team can help.',
-    task: 'Choose the safest response to finish your training.',
-    hint: 'Reports to @shroud go to Hack Club’s Fire Department moderation team.',
-  },
 }
 
 function makeInitialMessages(config: ProgramConfig): Message[] {
@@ -176,6 +124,29 @@ function makeInitialMessages(config: ProgramConfig): Message[] {
   }]
 }
 
+function makeChannelMessages(config: ProgramConfig, channel: string): Message[] {
+  if (channel === config.training.practice_channel || channel === config.completion.entry_channel) {
+    return makeInitialMessages(config)
+  }
+  return []
+}
+
+function isReadOnlyChannel(config: ProgramConfig, channel: string) {
+  return config.channels.read_only?.includes(channel) ?? (channel === 'announcements'
+    || channel === 'happenings'
+    || channel === 'news-wire'
+    || channel.includes('bulletin')
+    || channel.includes('community-announcements'))
+}
+
+function resolveProgramCopy(value: string, config: ProgramConfig) {
+  return value
+    .replaceAll('{{program}}', config.program.name)
+    .replaceAll('{{channel_target}}', config.training.channel_target)
+    .replaceAll('{{practice_channel}}', config.training.practice_channel)
+    .replaceAll('Stardance', config.program.name)
+}
+
 function makeDirectMessages(name = 'Christian'): Message[] {
   return [{
     id: 101,
@@ -193,11 +164,12 @@ function Avatar({ message }: { message: Message }) {
 
 function App() {
   const [config, setConfig] = useState<ProgramConfig | null>(null)
-  const [loadError, setLoadError] = useState('')
   const [introComplete, setIntroComplete] = useState(false)
   const [lessonIndex, setLessonIndex] = useState(0)
   const [completed, setCompleted] = useState<LessonId[]>([])
   const [channel, setChannel] = useState('welcome-to-hack-club')
+  const [joinedChannels, setJoinedChannels] = useState<string[]>([])
+  const [channelView, setChannelView] = useState<ChannelView>('messages')
   const [messages, setMessages] = useState<Message[]>([])
   const [directMessages, setDirectMessages] = useState<Message[]>(makeDirectMessages)
   const [directMessage, setDirectMessage] = useState<string | null>(null)
@@ -205,6 +177,8 @@ function App() {
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false)
   const [selectedMention, setSelectedMention] = useState<string | null>(null)
   const [threadOpen, setThreadOpen] = useState(false)
+  const [threadMessage, setThreadMessage] = useState<Message | null>(null)
+  const [resolvedThreads, setResolvedThreads] = useState<number[]>([])
   const [threadDraft, setThreadDraft] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -222,9 +196,10 @@ function App() {
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
       setConfig(loaded)
       setChannel(loaded.completion.entry_channel)
-      setMessages(makeInitialMessages(loaded))
+      setJoinedChannels(getDefaultChannels(loaded))
+      setMessages(makeChannelMessages(loaded, loaded.completion.entry_channel))
       document.title = `${loaded.program.name} · Slack Flight School`
-    }).catch((error: Error) => setLoadError(error.message))
+    }).catch(() => window.location.replace('https://hackclub.com/'))
   }, [])
 
   useEffect(() => {
@@ -253,22 +228,47 @@ function App() {
 
   const lessons = config?.training.lessons ?? []
   const defaultChannels = config ? getDefaultChannels(config) : []
-  const helpChannel = config
-    ? defaultChannels.find((name) => name === `${config.program.slug}-help`)
-      ?? defaultChannels.find((name) => name.includes('help'))
-      ?? config.training.practice_channel
-    : 'help'
+  const recommendedChannels = config?.channels.recommended ?? []
+  const searchableChannels = useMemo(
+    () => [...new Set([...joinedChannels, ...recommendedChannels])],
+    [joinedChannels, recommendedChannels],
+  )
+  const parsedSearch = useMemo(() => {
+    const match = searchQuery.match(/(?:^|\s)in:#?([a-z0-9-]+)/i)
+    return {
+      scope: match?.[1].toLowerCase() ?? '',
+      terms: searchQuery.replace(/(?:^|\s)in:#?[a-z0-9-]+/ig, ' ').trim().toLowerCase().split(/\s+/).filter(Boolean),
+    }
+  }, [searchQuery])
+  const searchResults = useMemo(() => {
+    if (!config || !searched) return []
+    return searchableChannels.flatMap((name) => {
+      if (parsedSearch.scope && name.toLowerCase() !== parsedSearch.scope) return []
+      const messageResults = makeChannelMessages(config, name).filter((message) => {
+        const haystack = `${name} ${message.author} ${message.body} ${message.attachment?.title ?? ''} ${message.attachment?.description ?? ''}`.toLowerCase()
+        return parsedSearch.terms.every((term) => haystack.includes(term))
+      }).map((message) => ({ channel: name, message }))
+      if (messageResults.length) return messageResults
+      return (!parsedSearch.terms.length || parsedSearch.terms.some((term) => name.toLowerCase().includes(term)))
+        ? [{ channel: name, message: { id: 0, author: '', avatar: '', color: '', time: '', body: '' } }]
+        : []
+    }).slice(0, 12)
+  }, [config, parsedSearch, searchableChannels, searched])
   const visibleMessages = directMessage ? directMessages : messages
   const activeLesson = lessons[lessonIndex]
-  const activeCopy = activeLesson ? {
-    ...lessonCopy[activeLesson],
-    body: lessonCopy[activeLesson].body.replaceAll('Stardance', config?.program.name ?? 'your program'),
+  const configuredLessonCopy = activeLesson
+    ? config?.copy?.lessons?.[activeLesson] ?? defaultLessonCopy[activeLesson]
+    : null
+  const activeCopy = activeLesson && configuredLessonCopy ? {
+    eyebrow: resolveProgramCopy(configuredLessonCopy.eyebrow, config!),
+    title: resolveProgramCopy(configuredLessonCopy.title, config!),
+    body: resolveProgramCopy(configuredLessonCopy.body, config!),
     task: activeLesson === 'dms' && directMessage === 'Christian'
       ? 'Send Christian a friendly hello in this DM.'
-      : lessonCopy[activeLesson].task.replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
+      : resolveProgramCopy(configuredLessonCopy.task, config!).replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
     hint: activeLesson === 'dms' && directMessage === 'Christian'
       ? 'Use the message box below, then press Enter or the send button.'
-      : lessonCopy[activeLesson].hint,
+      : resolveProgramCopy(configuredLessonCopy.hint, config!),
   } : null
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
   const allLessonsComplete = config ? completed.length === lessons.length : false
@@ -403,6 +403,10 @@ function App() {
 
   const selectChannel = (name: string) => {
     setChannel(name)
+    if (config) setMessages(makeChannelMessages(config, name))
+    setChannelView('messages')
+    setThreadOpen(false)
+    setThreadMessage(null)
     setDirectMessage(null)
     setSidebarOpen(false)
     if (name === config?.training.channel_target) completeLesson('channels')
@@ -427,7 +431,16 @@ function App() {
     event.preventDefault()
     const body = draft.trim()
     if (!body) return
-    const message = { id: Date.now(), author: 'You', avatar: 'Y', color: config?.program.color ?? '#6c5ce7', time: 'now', body }
+    const receivesProgramSupport = !directMessage && channel === config?.support?.channel
+    const message: Message = {
+      id: Date.now(),
+      author: 'You',
+      avatar: 'Y',
+      color: config?.program.color ?? '#6c5ce7',
+      time: 'now',
+      body,
+      ...(receivesProgramSupport ? { reactions: 1, reactionEmoji: '🤔', replies: 1 } : {}),
+    }
     if (directMessage) setDirectMessages((current) => [...current, message])
     else setMessages((current) => [...current, message])
     setDraft('')
@@ -449,21 +462,33 @@ function App() {
     event.preventDefault()
     if (!searchQuery.trim()) return
     setSearched(true)
-    if (searchQuery.toLowerCase().includes('hardware') && searchQuery.toLowerCase().includes('help')) completeLesson('search')
+    if ((parsedSearch.scope === 'hardware' || searchQuery.toLowerCase().includes('hardware')) && searchQuery.toLowerCase().includes('help')) completeLesson('search')
+  }
+
+  const joinChannel = (name: string, open = false) => {
+    setJoinedChannels((current) => current.includes(name) ? current : [...current, name])
+    if (open) selectChannel(name)
   }
 
   const goNext = () => {
     if (!config || lessonIndex >= lessons.length - 1) return
-    if (activeLesson === 'channels') setChannel(config.training.practice_channel)
+    if (activeLesson === 'channels') {
+      setChannel(config.training.practice_channel)
+      setMessages(makeChannelMessages(config, config.training.practice_channel))
+      setChannelView('messages')
+    }
     if (activeLesson === 'dms') {
       setDirectMessage(null)
       setChannel(config.training.practice_channel)
+      setMessages(makeChannelMessages(config, config.training.practice_channel))
+      setChannelView('messages')
     }
     setLessonIndex((value) => value + 1)
     setSafetyWrong(false)
     setSearched(false)
     setSearchQuery('')
     setThreadOpen(false)
+    setThreadMessage(null)
     setNotificationsOpen(false)
     setMentionMenuOpen(false)
     setSelectedMention(null)
@@ -472,11 +497,13 @@ function App() {
 
   const channelPurpose = useMemo(() => {
     if (directMessage) return `A private conversation with ${directMessage}.`
+    if (channel === 'lounge') return '🏳️‍🌈 Hang out & chat here! Also see: #community, #confessions, #furry, #lgbtq, #politics'
     if (config && channel === config.completion.entry_channel) return config.program.tagline
     if (channel === 'welcome-to-hack-club') return 'Meet other new members and ask a Hack Club Gardener when you need a hand!'
     if (channel === 'slack-guide') return 'Learn the basics and find your way around the Hack Club Slack!'
     if (channel === 'planet') return `Share ${config?.program.name ?? 'program'} projects, progress, and inspiration.`
     if (channel.includes('bulletin') || channel.includes('announcements')) return 'Official updates worth keeping an eye on.'
+    if (config?.support && channel === config.support.channel) return `#${config.support.channel} · #${config.support.discussion_channel}`
     if (channel.includes('help')) return 'Ask questions and help other Hack Clubbers!'
     if (channel === 'scrapbook') return 'Pick a subject and learn about it every day! Share updates here and get a custom, beautiful site generated at https://scrapbook.hackclub.com!'
     if (channel === 'code') return 'Discuss and get help with anything coding related! (No, your math homework doesn\'t count. Maybe it should actually...)'
@@ -484,14 +511,43 @@ function App() {
     return 'Your friendly launchpad into the Hack Club community.'
   }, [channel, config, directMessage])
 
-  if (loadError) return <main className="load-state"><CircleHelp /><h1>Program not found</h1><p>{loadError}</p><a href={`${import.meta.env.BASE_URL}program/stardance`}>Open the Stardance demo</a></main>
+  const channelTabs: { view: ChannelView; label: string; icon?: 'messages' | 'files' | 'pins' }[] = useMemo(() => {
+    const tabs: { view: ChannelView; label: string; icon?: 'messages' | 'files' | 'pins' }[] = [{ view: 'messages', label: 'Messages', icon: 'messages' }]
+    if (channel === 'lounge') {
+      return [...tabs,
+        { view: 'guide', label: 'Intro to Hack Club!' },
+        { view: 'pins', label: 'Pins', icon: 'pins' },
+        { view: 'files', label: 'Files & links', icon: 'files' },
+        { view: 'faq', label: 'Slackbot Ping Words!' },
+        { view: 'whats-on', label: 'Untitled' },
+      ]
+    }
+    if ([config?.completion.entry_channel, config?.training.practice_channel, 'welcome-to-hack-club', 'slack-guide'].includes(channel)) {
+      return [...tabs,
+        { view: 'guide', label: 'Your Guide to using Slack' },
+        { view: 'discover', label: 'Discover channels' },
+        { view: 'whats-on', label: 'What’s on' },
+        { view: 'files', label: 'Files & links', icon: 'files' },
+        { view: 'pins', label: 'Pins', icon: 'pins' },
+      ]
+    }
+    if (channel === 'help') return [...tabs, { view: 'support', label: 'Get Support' }, { view: 'faq', label: 'Help FAQ' }, { view: 'pins', label: 'Pins', icon: 'pins' }]
+    if (channel === 'identity-help') return [...tabs, { view: 'faq', label: 'Identity FAQ' }, { view: 'pins', label: 'Pins', icon: 'pins' }]
+    if (channel === config?.support?.channel) return [...tabs, { view: 'faq', label: config.support.faq_title }, { view: 'pins', label: 'Pins', icon: 'pins' }]
+    return [...tabs, { view: 'files', label: 'Files & links', icon: 'files' }, { view: 'pins', label: 'Pins', icon: 'pins' }]
+  }, [channel, config])
+
   if (!config) return <main className="load-state"><div className="spinner" /><p>Preparing your flight…</p></main>
 
   return (
     <main className="app-shell" style={{ '--program': config.program.color } as React.CSSProperties}>
       <header className="topbar">
         <button className="mobile-menu" aria-label="Open channel list" onClick={() => setSidebarOpen(true)}><Menu /></button>
-        <button className="history-button" aria-label="Recent history"><Clock3 size={17} /></button>
+        <div className="topbar-history">
+          <button className="history-button" aria-label="Back in history"><ArrowLeft /></button>
+          <button className="history-button" aria-label="Forward in history"><ArrowRight /></button>
+          <button className="history-button" aria-label="Show history"><Clock3 /></button>
+        </div>
         <button className={`search-trigger ${activeLesson === 'search' ? 'target-pulse' : ''}`} onClick={() => setSearchOpen(true)}>
           <Search size={16} /><span>Search Hack Club</span><kbd>⌘ K</kbd>
         </button>
@@ -499,31 +555,37 @@ function App() {
       </header>
 
       <nav className="nav-rail" aria-label="Slack navigation">
-        <button className="workspace-switcher" aria-label="Hack Club workspace"><span>HC</span></button>
+        <button className="workspace-switcher" aria-label="Hack Club workspace"><img src="https://avatars.slack-edge.com/2026-09-05/11996709803553_51617fa11c671209cbf0_88.png" alt="" /></button>
         <button className={directMessage ? '' : 'active'}><House /><span>Home</span></button>
         <button className={directMessage ? 'active' : ''} onClick={() => setSidebarOpen(true)}><MessagesSquare /><span>DMs</span></button>
-        <button><Bell /><span>Activity</span><i>2</i></button>
+        <button><Bell /><span>Activity</span><i>12</i></button>
         <button><FileText /><span>Files</span></button>
         <button><MoreHorizontal /><span>More</span></button>
         <div className="rail-spacer" />
+        <button className="rail-utility" aria-label="Add workspace"><Plus /></button>
+        <button className="rail-utility" aria-label="Theme"><Moon /></button>
         <button className="rail-profile"><span>Y</span></button>
       </nav>
 
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="workspace-title"><div><strong>Hack Club <ChevronDown size={14} /></strong></div><button className="workspace-settings" aria-label="Workspace settings"><Settings /></button><button className="compose-new" aria-label="New message"><SquarePen /></button><button className="close-sidebar" aria-label="Close channel list" onClick={() => setSidebarOpen(false)}><X /></button></div>
         <button className="sidebar-search"><ListFilter size={15} /> <span>Find a conversation…</span></button>
-        <button className="sidebar-item"><Send size={16} /> Drafts</button>
+        <button className="sidebar-item"><MessageCircle size={16} /> Threads</button>
+        <button className="sidebar-item"><Headphones size={16} /> Huddles</button>
+        <button className="sidebar-item"><Send size={16} /> Drafts &amp; sent</button>
         <button className="sidebar-item"><UserRound size={16} /> Directories</button>
-        <button className="more-unreads">↑ More unreads</button>
+        <button className="sidebar-item"><CheckCircle2 size={16} /> 2 tasks left</button>
+        <button className="more-unreads">↓ Unread mentions</button>
         <div className="sidebar-divider" />
         <button className="sidebar-item"><Star size={16} /> Starred</button>
+        <p className="starred-empty">Drag and drop important stuff here</p>
         <div className="sidebar-section channel-list">
           <p title={`${defaultChannels.length} channels will be added by Hack Club Auth`}><ChevronDown size={14} /> Channels</p>
-          {defaultChannels.map((name) => {
+          {joinedChannels.map((name) => {
             const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
             return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${activeLesson === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''}`} onClick={() => selectChannel(name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
           })}
-          <button><Plus size={16} /> Add channels</button>
+          <button onClick={() => { setDirectMessage(null); setChannelView('discover'); setSidebarOpen(false) }}><Plus size={16} /> Add channels</button>
         </div>
         <div className="sidebar-section dm-section">
           <p><ChevronDown size={14} /> Direct messages</p>
@@ -537,8 +599,8 @@ function App() {
         <header className="channel-header">
           <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} {directMessage ?? channel}</h2><p>{channelPurpose}</p></div>
           <div className="header-actions">
-            <button><UserRound size={17} /><span>51,029</span></button>
-            <button className="huddle-button"><Headphones size={17} /><span>Huddle</span></button>
+            <button><UserRound size={17} /><span>82,896</span></button>
+            <button className="huddle-button"><Headphones size={17} /><ChevronDown size={14} /></button>
             <div className="notification-wrap">
               <button className={activeLesson === 'notifications' ? 'target-pulse' : ''} aria-label="Notification settings" onClick={() => setNotificationsOpen((value) => !value)}>{notificationMode === 'Mentions & DMs' ? <BellRing size={19} /> : <Bell size={19} />}</button>
               {notificationsOpen && <div className="notification-menu"><strong>Notify me about…</strong>{['All new messages', 'Mentions & DMs', 'Nothing'].map((mode) => <button key={mode} onClick={() => { setNotificationMode(mode); setNotificationsOpen(false); if (mode === 'Mentions & DMs') completeLesson('notifications') }}><span>{mode}</span>{notificationMode === mode && <Check size={17} />}</button>)}</div>}
@@ -548,39 +610,114 @@ function App() {
           </div>
         </header>
         {!directMessage && <nav className="channel-tabs" aria-label="Channel tabs">
-          <button className="active"><MessageCircle size={15} /> Messages</button>
-          <button>Your Guide to using Slack</button>
-          <button>Public and active personal channels you can join</button>
-          <button>Read the newest edition of #happenings</button>
-          <button><FileText size={15} /> Files & links</button>
-          <button><Star size={15} /> Pins</button>
+          {channelTabs.map((tab) => <button key={tab.view} className={channelView === tab.view ? 'active' : ''} onClick={() => setChannelView(tab.view)}>
+            {tab.icon === 'messages' && <MessageCircle size={15} />}
+            {tab.icon === 'files' && <FileText size={15} />}
+            {tab.icon === 'pins' && <Star size={15} />}
+            {tab.label}
+          </button>)}
+          <button className="add-tab" aria-label="Add tab"><Plus size={17} /></button>
         </nav>}
 
-        <div className="messages" aria-live="polite">
-          <div className="channel-intro"><div>{directMessage ? <UserRound /> : <Hash />}</div><h1>{directMessage ? directMessage : `Welcome to #${channel}!`}</h1><p>{channelPurpose}</p></div>
+        {!directMessage && channelView !== 'messages' && <div className="channel-canvas" aria-live="polite">
+          {channelView === 'guide' && <>
+            <div className="canvas-heading"><span>CANVAS</span><h1>Your Guide to using Slack</h1></div>
+            <div className="canvas-grid">
+              {(['channels', 'messages', 'threads', 'search'] as LessonId[]).map((lesson) => {
+                const copy = config.copy?.lessons?.[lesson] ?? defaultLessonCopy[lesson]
+                return <article key={lesson}><MessageCircle /><div><h2>{resolveProgramCopy(copy.title, config)}</h2><p>{resolveProgramCopy(copy.body, config)}</p></div></article>
+              })}
+            </div>
+          </>}
+          {channelView === 'discover' && <>
+            <div className="canvas-heading"><span>CHANNEL BROWSER</span><h1>Public and active personal channels you can join</h1></div>
+            <div className="discovery-list">
+              {recommendedChannels.map((name) => <article key={name}>
+                <div className="discovery-icon"><Hash /></div>
+                <div><h2>{name}</h2></div>
+                <div className="discovery-actions"><button onClick={() => selectChannel(name)}>Preview</button><button className="join-button" disabled={joinedChannels.includes(name)} onClick={() => joinChannel(name)}>{joinedChannels.includes(name) ? 'Joined' : 'Join channel'}</button></div>
+              </article>)}
+            </div>
+          </>}
+          {channelView === 'whats-on' && <>
+            <div className="canvas-heading"><span>CANVAS</span><h1>Read the newest edition of #happenings</h1></div>
+            <div className="canvas-links"><button onClick={() => joinedChannels.includes('happenings') ? selectChannel('happenings') : joinChannel('happenings', true)}><Hash /> happenings <ChevronRight /></button><button onClick={() => joinedChannels.includes('announcements') ? selectChannel('announcements') : joinChannel('announcements', true)}><Hash /> announcements <ChevronRight /></button></div>
+          </>}
+          {channelView === 'support' && <>
+            <div className="canvas-heading"><span>CANVAS</span><h1>Get Support</h1></div>
+            <div className="support-routes">
+              <button onClick={() => joinedChannels.includes('identity-help') ? selectChannel('identity-help') : joinChannel('identity-help', true)}><span>🔐</span><div><strong>#identity-help</strong></div><ChevronRight /></button>
+              {config.support && <button onClick={() => selectChannel(config.support!.channel)}><span>🛟</span><div><strong>#{config.support.channel}</strong></div><ChevronRight /></button>}
+              <button onClick={() => joinedChannels.includes('hardware') ? selectChannel('hardware') : joinChannel('hardware', true)}><span>🔧</span><div><strong>#hardware</strong></div><ChevronRight /></button>
+            </div>
+          </>}
+          {channelView === 'faq' && <>
+            <div className="canvas-heading"><span>CANVAS</span><h1>{channel === 'identity-help' ? 'Identity FAQ' : channel === 'help' ? 'Hack Club help FAQ' : config.support?.faq_title ?? `${config.program.name} FAQ`}</h1>{config.support && channel === config.support.channel && <p>{config.support.faq_intro}</p>}</div>
+            <div className="faq-list">
+              {config.support && channel === config.support.channel ? <>
+                {config.support.faq.map((item, index) => <details key={item.question} open={index === 0}><summary>{item.question}</summary><p>{item.answer}</p></details>)}
+              </> : null}
+            </div>
+          </>}
+          {channelView === 'files' && <>
+            <div className="canvas-heading"><h1>Files & links</h1></div>
+            <div className="file-list">{messages.filter((message) => message.attachment).map((message) => <article key={message.id}><FileText /><div><strong>{message.attachment!.title}</strong></div></article>)}</div>
+          </>}
+          {channelView === 'pins' && <>
+            <div className="canvas-heading"><h1>Pins</h1></div>
+            <div className="pin-list">{messages.filter((message) => message.pinned).map((message) => <article key={message.id}><Star /><div><strong>{message.author}</strong><p>{message.body}</p></div></article>)}</div>
+          </>}
+        </div>}
+
+        {(directMessage || channelView === 'messages') && <div className="messages" aria-live="polite">
+          {(!introComplete || directMessage) && <div className="channel-intro"><div>{directMessage ? <UserRound /> : <Hash />}</div><h1>{directMessage ? directMessage : `Welcome to #${channel}!`}</h1><p>{channelPurpose}</p></div>}
+          {introComplete && !directMessage && <div className="history-status"><span>Today <ChevronDown /></span><p>Loading history…</p></div>}
           {visibleMessages.map((message) => (
             <article className="message" key={message.id}>
               <Avatar message={message} />
               <div className="message-content">
                 <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time></div>
                 <p>{message.body}</p>
+                {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
+                {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
                 {!directMessage && message.id === 2 && <div className="message-tools">
-                  <button className={activeLesson === 'reactions' ? 'target-action' : ''} onClick={() => { setMessages((current) => current.map((item) => item.id === 2 ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item)); completeLesson('reactions') }}><SmilePlus size={16} /> <span>⭐</span> {message.reactions}</button>
-                  <button className={activeLesson === 'threads' ? 'target-action' : ''} onClick={() => setThreadOpen(true)}><MessageCircle size={16} /> {message.replies} replies <span>View thread</span></button>
+                  <button className={activeLesson === 'reactions' ? 'target-action' : ''} onClick={() => { setMessages((current) => current.map((item) => item.id === 2 ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item)); completeLesson('reactions') }}><SmilePlus size={16} /> <span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
+                  {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
+                  <button className={activeLesson === 'threads' ? 'target-action' : ''} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle size={16} /> {message.replies} replies <span>View thread</span></button>
+                </div>}
+                {!directMessage && message.id !== 2 && (message.reactions || message.replies) && <div className="message-tools reaction-row">
+                  {message.reactions && <button><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
+                  {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
+                  {message.replies && <button onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle size={15} /> {message.replies} {message.replies === 1 ? 'reply' : 'replies'} <span>View thread</span></button>}
                 </div>}
               </div>
-              <div className="message-hover-actions" aria-hidden="true"><button tabIndex={-1}>🙂</button><button tabIndex={-1} onClick={() => message.id === 2 && setThreadOpen(true)}><MessageCircle /></button><button tabIndex={-1}><MoreHorizontal /></button></div>
+              <div className="message-hover-actions" aria-hidden="true"><button tabIndex={-1}>🙂</button><button tabIndex={-1} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle /></button><button tabIndex={-1}><MoreHorizontal /></button></div>
             </article>
           ))}
-        </div>
+        </div>}
 
-        <form className={`composer ${activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
-          <div className="format-bar"><button type="button"><strong>B</strong></button><button type="button"><em>I</em></button><button type="button"><span className="strike">S</span></button><i /><button type="button">🔗</button><button type="button">≡</button><button type="button">☷</button><button type="button">“</button><button type="button">{'</>'}</button><span /></div>
+        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+          <div className="format-bar" role="toolbar" aria-label="Formatting">
+            <button type="button" aria-label="Bold"><strong>B</strong></button>
+            <button type="button" aria-label="Italic"><em>I</em></button>
+            <button type="button" aria-label="Underline"><span className="underline">U</span></button>
+            <button type="button" aria-label="Strikethrough"><span className="strike">S</span></button>
+            <i />
+            <button type="button" aria-label="Link">🔗</button>
+            <button type="button" aria-label="Ordered list">1≡</button>
+            <button type="button" aria-label="Bulleted list">•≡</button>
+            <i />
+            <button type="button" aria-label="Blockquote">❯</button>
+            <button type="button" aria-label="Code">{'<>'}</button>
+            <button type="button" aria-label="Code block">▣</button>
+            <span />
+          </div>
           <div className="compose-row"><input ref={composerRef} value={draft} onChange={(event) => { setDraft(event.target.value); if (!event.target.value.includes('@Nova')) setSelectedMention(null) }} placeholder={directMessage ? `Message ${directMessage}` : `Message #${channel}`} aria-label={directMessage ? `Message ${directMessage}` : `Message ${channel}`} /></div>
           {mentionMenuOpen && <div className="mention-menu" role="listbox" aria-label="People to ping"><strong>Ping someone</strong><button type="button" role="option" aria-selected="false" onClick={() => selectMention('Nova')}><span className="dm-dot avatar-nova">N<i /></span><span><b>Nova</b><small>@Nova</small></span></button><button type="button" role="option" aria-selected="false" onClick={() => selectMention('Christian')}><span className="dm-dot avatar-christian">C<i /></span><span><b>Christian</b><small>@Christian</small></span></button></div>}
-          <div className="composer-actions"><div><button type="button" aria-label="Add attachment"><Plus /><span className="action-divider" /><Paperclip /></button><button type="button" aria-label="Record clip">▶</button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={activeLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={() => setMentionMenuOpen((value) => !value)}><AtSign /></button></div><div><button className="send-button" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button></div></div>
+          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={activeLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={() => setMentionMenuOpen((value) => !value)}><AtSign /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send now"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
           <div className="simulation-note"><ShieldCheck size={13} /> Practice mode · messages stay on this device</div>
-        </form>
+        </form>}
+        {!directMessage && channelView === 'messages' && isReadOnlyChannel(config, channel) && <div className="read-only-notice"><ShieldCheck /><div><strong>Only certain people can post in this channel</strong></div></div>}
       </section>
 
       {!allComplete && <>
@@ -629,13 +766,17 @@ function App() {
       </aside>
       </>}
 
-      {threadOpen && <aside className="thread-panel">
+      {threadOpen && threadMessage && <aside className="thread-panel">
         <header><div><strong>Thread</strong><span>#{channel}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
-        <article className="message"><Avatar message={messages[1]} /><div className="message-content"><div className="message-meta"><strong>Nova</strong><time>9:44 AM</time></div><p>{messages[1].body}</p></div></article>
-        <div className="reply-count"><span /> 2 replies <span /></div>
-        <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
-        <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
-        <form className={`thread-composer ${activeLesson === 'threads' ? 'target-composer' : ''}`} onSubmit={sendThreadReply}><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder="Reply to Nova…" autoFocus /><button disabled={!threadDraft.trim()}><Send size={17} /></button></form>
+        <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p></div></article>
+        <div className="reply-count"><span /> {threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'} <span /></div>
+        {config.support && channel === config.support.channel ? <>
+          <article className="message compact support-bot-reply"><div className="avatar support-bot-avatar">{config.support.bot_name[0]}</div><div className="message-content"><div className="message-meta"><strong>{config.support.bot_name}</strong><span className="bot-label">APP</span><time>just now</time></div><p>{config.support.acknowledgement.replaceAll('{{author}}', threadMessage.author).replaceAll('{{program}}', config.program.name)}</p><button className="thread-faq-link" onClick={() => { setThreadOpen(false); setChannelView('faq') }}><FileText /> {config.support.faq_title}</button><div className="support-ticket-row"><button disabled={resolvedThreads.includes(threadMessage.id)} onClick={() => setResolvedThreads((current) => [...current, threadMessage.id])}>{resolvedThreads.includes(threadMessage.id) ? <><Check /> Resolved</> : 'Mark as resolved'}</button></div></div></article>
+        </> : <>
+          <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
+          <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
+        </>}
+        <form className={`thread-composer ${activeLesson === 'threads' ? 'target-composer' : ''}`} onSubmit={sendThreadReply}><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder={`Reply to ${threadMessage.author}…`} autoFocus /><button disabled={!threadDraft.trim()}><Send size={17} /></button></form>
       </aside>}
 
       {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -643,7 +784,15 @@ function App() {
         {activeLesson === 'dms' ? searchQuery.toLowerCase().includes('christian')
           ? <div className="search-results people-results"><p>People matching <strong>{searchQuery}</strong></p><button className="dm-search-result" aria-label="Open DM with Christian" onClick={() => { selectDirectMessage('Christian'); setSearchOpen(false); setSearchQuery('') }}><span className="search-avatar">C</span><div><strong>Christian</strong><span>@christian · Direct message</span></div><ChevronRight /></button></div>
           : <div className="search-empty"><UserRound /><h3>Find Christian</h3><p>Type <button onClick={() => setSearchQuery('Christian')}>Christian</button> to find their Hack Club account.</p></div>
-        : !searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><p>Try <button onClick={() => setSearchQuery('hardware help')}>hardware help</button> to find where makers get unstuck.</p><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results"><p>3 results for <strong>{searchQuery}</strong></p><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>hardware</strong><span><b>Jules</b> · Need hardware help? Share a photo and what you’ve tried so far.</span></div></button><button onClick={() => setSearchOpen(false)}><Hash /><div><strong>{helpChannel}</strong><span><b>Orbit</b> · Ask for help at any stage—unfinished projects are welcome here.</span></div></button></div>}
+        : !searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results message-search-results">
+            <div className="search-results-header"><div><strong>{searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}</strong><span> for “{searchQuery}”</span></div><button type="button">Most relevant <ChevronDown /></button></div>
+            <div className="search-filter-row"><span>Messages</span>{parsedSearch.scope && <span><Hash size={12} /> In: {parsedSearch.scope}</span>}<button type="button">From</button><button type="button">After</button></div>
+            {searchResults.map((result) => <button key={`${result.channel}-${result.message.id}`} onClick={() => { joinChannel(result.channel, true); setSearchOpen(false) }}>
+              <Hash />
+              <div><strong>{result.channel}</strong>{result.message.author && <span className="search-result-meta"><b>{result.message.author}</b> · {result.message.time}{result.message.replies ? ` · ${result.message.replies} replies` : ''}</span>}{result.message.body && <p>{result.message.body}</p>}</div>
+            </button>)}
+            {searchResults.length === 0 && <div className="no-results"><Search /><h3>No messages found</h3></div>}
+          </div>}
       </section></div>}
 
       {allComplete && <div className="modal-backdrop completion-backdrop"><section className="completion-modal">

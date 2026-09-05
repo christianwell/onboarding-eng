@@ -74,4 +74,39 @@ describe('program configuration', () => {
     expect(() => validateProgram({ ...config, completion: { ...config.completion, auth_url: 'javascript:alert(1)' } })).toThrow('HTTP or HTTPS URL')
     expect(() => validateProgram({ ...config, completion: { ...config.completion, return_origins: ['https://example.com/path'] } })).toThrow('without paths')
   })
+
+  it('accepts human-written lesson, channel, and support configuration', () => {
+    const customized = validateProgram({
+      ...structuredClone(config),
+      channels: { ...config.channels, read_only: ['stardance'] },
+      copy: { lessons: { channels: {
+        eyebrow: 'Eyebrow',
+        title: 'Title',
+        body: 'Body',
+        task: 'Task',
+        hint: 'Hint',
+      } } },
+      support: {
+        channel: 'stardance-help',
+        discussion_channel: 'stardance',
+        bot_name: 'Support',
+        acknowledgement: 'Acknowledgement',
+        faq_title: 'FAQ',
+        faq_intro: 'Introduction',
+        faq: [{ question: 'Question', answer: 'Answer' }],
+      },
+    })
+
+    expect(customized.copy?.lessons?.channels?.title).toBe('Title')
+    expect(customized.channels.read_only).toEqual(['stardance'])
+    expect(customized.support?.channel).toBe('stardance-help')
+  })
+
+  it('rejects incomplete copy and support configuration', () => {
+    expect(() => validateProgram({ ...structuredClone(config), copy: { lessons: { channels: { title: 'Only a title' } } } })).toThrow('lesson copy')
+    expect(() => validateProgram({
+      ...structuredClone(config),
+      support: { channel: 'stardance-help', discussion_channel: 'stardance' },
+    })).toThrow('human-written')
+  })
 })

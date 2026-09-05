@@ -47,6 +47,24 @@ channels:
     - scrapbook
     - code
     - hardware
+  read_only:
+    - stardance-bulletin
+    - happenings
+    - community-announcements
+    - announcements
+
+support:
+  channel: stardance-help
+  discussion_channel: stardance
+  bot_name: Heidi the Astronaut
+  acknowledgement: "Hi {{author}}, welcome back to the {{program}} support channel! Someone should be here to help you out soon. As a reminder, you can take a look at the FAQ while you wait – it might contain the answer to your question!"
+  faq_title: Stardance Challenge FAQ
+  faq_intro: "Welcome to the Stardance Challenge! Read me first (please!) and if you're still having issues, just send a message in #stardance-help."
+  faq:
+    - question: What is the Stardance Challenge?
+      answer: Check out the Stardance website!
+    - question: What is Hack Club?
+      answer: We're a worldwide community of 100k+ teen hackers, as well as a nonprofit that funds programs such as the Stardance Challenge.
 
 completion:
   auth_url: "https://auth.hackclub.com/join/stardance"
