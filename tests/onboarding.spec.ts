@@ -172,6 +172,47 @@ test('supports canvases, channel discovery, read-only channels, and scoped searc
   await expect(page.locator('.message-search-results > button').filter({ hasText: 'hardware' })).toBeVisible()
 })
 
+test('fuzzy-searches conversations and completes typed mentions from the keyboard', async ({ page }) => {
+  await page.goto('/program/slack')
+  await page.addStyleTag({ content: '.coach, .guide-dim, .guide-spotlight, .guide-arrow { display: none !important; }' })
+
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  const search = page.getByPlaceholder('Search messages, people, and channels')
+  await search.fill('hrdwr')
+  await expect(page.getByRole('listbox', { name: 'Search suggestions' }).getByRole('option', { name: /hardware/i })).toBeVisible()
+  await search.press('ArrowDown')
+  await search.press('Enter')
+  await expect(page.getByRole('heading', { level: 2, name: /hardware/i })).toBeVisible()
+
+  const composer = page.getByLabel('Message hardware')
+  await composer.fill('Could @nv')
+  const people = page.getByRole('listbox', { name: 'People to ping' })
+  await expect(people.getByRole('option', { name: /Nova/i })).toBeVisible()
+  await composer.press('Enter')
+  await expect(composer).toHaveValue('Could @Nova ')
+
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  const memberSearch = page.getByPlaceholder('Search messages, people, and channels')
+  await memberSearch.fill('chrs')
+  await memberSearch.press('ArrowDown')
+  await memberSearch.press('Enter')
+  await expect(page.getByRole('heading', { level: 1, name: 'Christian', exact: true })).toBeVisible()
+})
+
+test('completes the search lesson when hardware is opened from live suggestions', async ({ page }) => {
+  await page.goto('/program/slack')
+  await page.evaluate(() => localStorage.setItem('onboarding:slack', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions'] })))
+  await page.reload()
+
+  await expect(page.getByRole('heading', { name: /search before asking again/i })).toBeVisible()
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
+  await page.getByRole('button', { name: /hardware channel/i }).click()
+
+  await expect(page.getByRole('heading', { level: 2, name: /hardware/i })).toBeVisible()
+  await expect(page.getByText('Mission complete!')).toBeVisible()
+})
+
 test('routes identity questions through its FAQ canvas', async ({ page }) => {
   await page.goto('/program/stardance')
   await page.addStyleTag({ content: '.coach, .guide-dim, .guide-spotlight, .guide-arrow { display: none !important; }' })

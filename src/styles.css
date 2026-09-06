@@ -579,13 +579,26 @@ button { color: inherit; }
 .search-results.people-results > button { grid-template-columns: 38px 1fr 22px; align-items: center; }
 .search-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 7px; color: white !important; background: #ec3750; font-size: 15px !important; font-weight: 700; }
 .search-results.people-results > button > svg { padding: 0; background: none; }
+.search-suggestions { max-height: min(560px, calc(100vh - 170px)); overflow-y: auto; padding: 7px 0; }
+.search-suggestions > p { margin: 0; padding: 9px 18px 5px; color: #616061; font-size: 11px; font-weight: 700; }
+.search-suggestions > button { border: 0; width: 100%; min-height: 48px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 20px; align-items: center; gap: 10px; padding: 5px 18px; color: #1d1c1d; background: white; text-align: left; cursor: pointer; }
+.search-suggestions > button:hover, .search-suggestions > button.active { color: white; background: #1264a3; }
+.search-suggestions > button > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.search-suggestions > button strong, .search-suggestions > button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-suggestions > button strong { font-size: 13px; }.search-suggestions > button small { color: #696569; font-size: 10.5px; }
+.search-suggestions > button:hover small, .search-suggestions > button.active small { color: rgba(255,255,255,.82); }
+.search-suggestions > button > svg { width: 16px; justify-self: end; }
+.suggestion-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 7px; color: #4a154b; background: #f3edf4; }
+.suggestion-icon svg { width: 18px; }
+.search-suggestions .search-all { min-height: 47px; margin-top: 5px; border-top: 1px solid #e4e1e4; }
+.search-suggestions .search-all kbd { justify-self: end; border: 1px solid #ccc8cf; border-radius: 4px; padding: 2px 5px; color: #616061; background: #f8f7f8; font-size: 10px; }
 .coach.coach-over-modal { z-index: 110; }
-.mention-menu { position: absolute; z-index: 60; left: 126px; bottom: 41px; width: 230px; overflow: hidden; padding: 7px 0; border: 1px solid #d8d5d8; border-radius: 9px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+.mention-menu { position: absolute; z-index: 60; left: 42px; bottom: calc(100% + 6px); width: 230px; max-height: 270px; overflow-y: auto; padding: 7px 0; border: 1px solid #d8d5d8; border-radius: 9px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
 .mention-menu > strong { display: block; padding: 5px 12px 7px; color: #616061; font-size: 11px; }
 .mention-menu > button { border: 0; width: 100%; min-height: 42px; display: flex; align-items: center; gap: 9px; padding: 5px 12px; color: #1d1c1d; background: white; text-align: left; cursor: pointer; }
-.mention-menu > button:hover { background: #1264a3; color: white; }
+.mention-menu > button:hover, .mention-menu > button.active { background: #1264a3; color: white; }
 .mention-menu > button > span:last-child { display: flex; flex-direction: column; }
-.mention-menu small { color: #777; font-size: 10px; }.mention-menu > button:hover small { color: rgba(255,255,255,.8); }
+.mention-menu small { color: #777; font-size: 10px; }.mention-menu > button:hover small, .mention-menu > button.active small { color: rgba(255,255,255,.8); }
 .simulation-note { display: none; }
 .thread-panel { top: 48px; width: 420px; }
 

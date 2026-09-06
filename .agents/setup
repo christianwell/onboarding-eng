@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+step() {
+  printf '\n==> %s\n' "$1"
+}
+
+step "Installing the repository Node.js version"
+required_node="$(cat .node-version)"
+if [[ "$(node --version)" != "v${required_node}" ]]; then
+  npm install --global n
+  n "$required_node"
+  hash -r
+fi
+
+step "Installing locked npm dependencies"
+npm ci
+
+step "Installing the Playwright Chromium browser"
+npx playwright install chromium
+
+step "Orb setup complete"

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -61,6 +61,52 @@ type Message = {
 
 type OverlayRect = { left: number; top: number; width: number; height: number }
 type ChannelView = 'messages' | 'guide' | 'discover' | 'whats-on' | 'support' | 'faq' | 'files' | 'pins'
+type WorkspaceMember = { name: string; username: string; color: string }
+type SearchSuggestion = { type: 'channel'; name: string } | { type: 'member'; member: WorkspaceMember }
+
+const workspaceMembers: WorkspaceMember[] = [
+  { name: 'Nova', username: 'nova', color: '#3f88c5' },
+  { name: 'Christian', username: 'christian', color: '#ec3750' },
+  { name: 'Mika', username: 'mika', color: '#ef8354' },
+  { name: 'Jules', username: 'jules', color: '#2f9e72' },
+  { name: 'Priya', username: 'priya', color: '#9c6ade' },
+]
+
+function fuzzyScore(value: string, query: string) {
+  const candidate = value.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const needle = query.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (!needle) return 0
+  const exactIndex = candidate.indexOf(needle)
+  if (exactIndex !== -1) return exactIndex * 2 + candidate.length - needle.length
+
+  let candidateIndex = 0
+  let gapScore = 0
+  for (const character of needle) {
+    const foundAt = candidate.indexOf(character, candidateIndex)
+    if (foundAt === -1) return null
+    gapScore += foundAt - candidateIndex
+    candidateIndex = foundAt + 1
+  }
+  return 20 + gapScore + candidate.length - needle.length
+}
+
+function rankMatches<T>(items: T[], label: (item: T) => string, query: string, limit: number) {
+  const terms = query.trim().split(/\s+/).filter(Boolean)
+  return items.map((item, index) => {
+    const scores = (terms.length ? terms : ['']).map((term) => fuzzyScore(label(item), term)).filter((score): score is number => score !== null)
+    return { item, index, score: scores.length ? Math.min(...scores) : null }
+  }).filter((match): match is { item: T; index: number; score: number } => match.score !== null)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .slice(0, limit)
+    .map(({ item }) => item)
+}
+
+function getMentionToken(value: string, caret: number) {
+  const beforeCaret = value.slice(0, caret)
+  const match = beforeCaret.match(/(?:^|\s)@([a-z0-9_-]*)$/i)
+  if (!match || match.index === undefined) return null
+  return { query: match[1], start: match.index + (match[0].startsWith('@') ? 0 : 1) }
+}
 
 const guideAssets = {
   flag: 'https://raw.githubusercontent.com/christianwell/welcome-to-slack/main/assets/flag-orpheus.svg',
@@ -174,6 +220,8 @@ function App() {
   const [directMessage, setDirectMessage] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0)
   const [selectedMention, setSelectedMention] = useState<string | null>(null)
   const [threadOpen, setThreadOpen] = useState(false)
   const [threadMessage, setThreadMessage] = useState<Message | null>(null)
@@ -181,6 +229,7 @@ function App() {
   const [threadDraft, setThreadDraft] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchActiveIndex, setSearchActiveIndex] = useState(-1)
   const [searched, setSearched] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notificationMode, setNotificationMode] = useState('All new messages')
@@ -232,6 +281,18 @@ function App() {
     () => [...new Set([...joinedChannels, ...recommendedChannels])],
     [joinedChannels, recommendedChannels],
   )
+  const mentionMatches = useMemo(
+    () => rankMatches(workspaceMembers, (member) => `${member.name} ${member.username}`, mentionQuery, 6),
+    [mentionQuery],
+  )
+  const searchSuggestions = useMemo<SearchSuggestion[]>(() => {
+    if (!searchQuery.trim()) return []
+    const channels = rankMatches(searchableChannels, (name) => name, searchQuery, 5)
+      .map((name): SearchSuggestion => ({ type: 'channel', name }))
+    const members = rankMatches(workspaceMembers, (member) => `${member.name} ${member.username}`, searchQuery, 4)
+      .map((member): SearchSuggestion => ({ type: 'member', member }))
+    return [...channels, ...members]
+  }, [searchQuery, searchableChannels])
   const parsedSearch = useMemo(() => {
     const match = searchQuery.match(/(?:^|\s)in:#?([a-z0-9-]+)/i)
     return {
@@ -420,10 +481,71 @@ function App() {
   }
 
   const selectMention = (name: string) => {
-    setDraft((value) => `${value.replace(/\s*$/, '')}${value.trim() ? ' ' : ''}@${name} `)
+    const caret = composerRef.current?.selectionStart ?? draft.length
+    const token = getMentionToken(draft, caret)
+    const before = token ? draft.slice(0, token.start) : draft.slice(0, caret)
+    const after = draft.slice(caret).replace(/^\s*/, '')
+    const nextDraft = `${before}@${name} ${after}`
+    const nextCaret = before.length + name.length + 2
+    setDraft(nextDraft)
     setSelectedMention(name)
     setMentionMenuOpen(false)
-    window.setTimeout(() => composerRef.current?.focus(), 0)
+    setMentionQuery('')
+    window.setTimeout(() => {
+      composerRef.current?.focus()
+      composerRef.current?.setSelectionRange(nextCaret, nextCaret)
+    }, 0)
+  }
+
+  const updateDraft = (value: string, caret: number) => {
+    setDraft(value)
+    const token = getMentionToken(value, caret)
+    setMentionMenuOpen(Boolean(token))
+    setMentionQuery(token?.query ?? '')
+    setMentionActiveIndex(0)
+    if (selectedMention && !value.includes(`@${selectedMention}`)) setSelectedMention(null)
+  }
+
+  const openMentionMenu = () => {
+    const input = composerRef.current
+    const caret = input?.selectionStart ?? draft.length
+    const token = getMentionToken(draft, caret)
+    if (token) {
+      setMentionQuery(token.query)
+      setMentionMenuOpen(true)
+      setMentionActiveIndex(0)
+      input?.focus()
+      return
+    }
+    const nextDraft = `${draft.slice(0, caret)}@${draft.slice(caret)}`
+    setDraft(nextDraft)
+    setMentionQuery('')
+    setMentionMenuOpen(true)
+    setMentionActiveIndex(0)
+    window.setTimeout(() => {
+      input?.focus()
+      input?.setSelectionRange(caret + 1, caret + 1)
+    }, 0)
+  }
+
+  const handleComposerKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (!mentionMenuOpen) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setMentionMenuOpen(false)
+      return
+    }
+    if (!mentionMatches.length) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      setMentionActiveIndex((current) => (current + direction + mentionMatches.length) % mentionMatches.length)
+      return
+    }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      selectMention(mentionMatches[Math.min(mentionActiveIndex, mentionMatches.length - 1)].name)
+    }
   }
 
   const sendMessage = (event: FormEvent) => {
@@ -457,16 +579,57 @@ function App() {
     completeLesson('threads')
   }
 
+  const completeSearchIfMatched = (selectedChannel?: string) => {
+    const query = searchQuery.toLowerCase()
+    if ((selectedChannel === 'hardware' || parsedSearch.scope === 'hardware' || query.includes('hardware')) && query.includes('help')) {
+      completeLesson('search')
+    }
+  }
+
   const runSearch = (event: FormEvent) => {
     event.preventDefault()
     if (!searchQuery.trim()) return
     setSearched(true)
-    if ((parsedSearch.scope === 'hardware' || searchQuery.toLowerCase().includes('hardware')) && searchQuery.toLowerCase().includes('help')) completeLesson('search')
+    setSearchActiveIndex(-1)
+    completeSearchIfMatched()
   }
 
   const joinChannel = (name: string, open = false) => {
     setJoinedChannels((current) => current.includes(name) ? current : [...current, name])
     if (open) selectChannel(name)
+  }
+
+  const selectSearchSuggestion = (suggestion: SearchSuggestion) => {
+    if (suggestion.type === 'channel') {
+      completeSearchIfMatched(suggestion.name)
+      joinChannel(suggestion.name, true)
+    }
+    else selectDirectMessage(suggestion.member.name)
+    setSearchOpen(false)
+    setSearchQuery('')
+    setSearchActiveIndex(-1)
+  }
+
+  const handleSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setSearchOpen(false)
+      return
+    }
+    if (searched || !searchSuggestions.length) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      setSearchActiveIndex((current) => {
+        if (current === -1) return direction === 1 ? 0 : searchSuggestions.length - 1
+        return (current + direction + searchSuggestions.length) % searchSuggestions.length
+      })
+      return
+    }
+    if ((event.key === 'Enter' || event.key === 'Tab') && searchActiveIndex >= 0) {
+      event.preventDefault()
+      selectSearchSuggestion(searchSuggestions[searchActiveIndex])
+    }
   }
 
   const goNext = () => {
@@ -711,9 +874,9 @@ function App() {
             <button type="button" aria-label="Code block">▣</button>
             <span />
           </div>
-          <div className="compose-row"><input ref={composerRef} value={draft} onChange={(event) => { setDraft(event.target.value); if (!event.target.value.includes('@Nova')) setSelectedMention(null) }} placeholder={directMessage ? `Message ${directMessage}` : `Message #${channel}`} aria-label={directMessage ? `Message ${directMessage}` : `Message ${channel}`} /></div>
-          {mentionMenuOpen && <div className="mention-menu" role="listbox" aria-label="People to ping"><strong>Ping someone</strong><button type="button" role="option" aria-selected="false" onClick={() => selectMention('Nova')}><span className="dm-dot avatar-nova">N<i /></span><span><b>Nova</b><small>@Nova</small></span></button><button type="button" role="option" aria-selected="false" onClick={() => selectMention('Christian')}><span className="dm-dot avatar-christian">C<i /></span><span><b>Christian</b><small>@Christian</small></span></button></div>}
-          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={activeLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={() => setMentionMenuOpen((value) => !value)}><AtSign /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send now"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
+          <div className="compose-row"><input ref={composerRef} value={draft} onChange={(event) => updateDraft(event.target.value, event.target.selectionStart ?? event.target.value.length)} onKeyDown={handleComposerKeyDown} placeholder={directMessage ? `Message ${directMessage}` : `Message #${channel}`} aria-label={directMessage ? `Message ${directMessage}` : `Message ${channel}`} aria-autocomplete="list" aria-controls={mentionMenuOpen ? 'mention-suggestions' : undefined} aria-expanded={mentionMenuOpen} /></div>
+          {mentionMenuOpen && <div id="mention-suggestions" className="mention-menu" role="listbox" aria-label="People to ping"><strong>Ping someone</strong>{mentionMatches.map((member, index) => <button key={member.username} type="button" role="option" aria-selected={index === mentionActiveIndex} className={index === mentionActiveIndex ? 'active' : ''} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setMentionActiveIndex(index)} onClick={() => selectMention(member.name)}><span className="dm-dot" style={{ background: member.color }}>{member.name[0]}<i /></span><span><b>{member.name}</b><small>@{member.username}</small></span></button>)}</div>}
+          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={activeLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={openMentionMenu}><AtSign /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
           <div className="simulation-note"><ShieldCheck size={13} /> Practice mode · messages stay on this device</div>
         </form>}
         {!directMessage && channelView === 'messages' && isReadOnlyChannel(config, channel) && <div className="read-only-notice"><ShieldCheck /><div><strong>Only certain people can post in this channel</strong></div></div>}
@@ -779,11 +942,17 @@ function App() {
       </aside>}
 
       {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
-        <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false) }} placeholder="Search messages, people, and channels" autoFocus /><button type="button" onClick={() => setSearchOpen(false)}><X /></button></form>
-        {activeLesson === 'dms' ? searchQuery.toLowerCase().includes('christian')
-          ? <div className="search-results people-results"><p>People matching <strong>{searchQuery}</strong></p><button className="dm-search-result" aria-label="Open DM with Christian" onClick={() => { selectDirectMessage('Christian'); setSearchOpen(false); setSearchQuery('') }}><span className="search-avatar">C</span><div><strong>Christian</strong><span>@christian · Direct message</span></div><ChevronRight /></button></div>
-          : <div className="search-empty"><UserRound /><h3>Find Christian</h3><p>Type <button onClick={() => setSearchQuery('Christian')}>Christian</button> to find their Hack Club account.</p></div>
-        : !searched ? <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><div><kbd>Enter</kbd> to search</div></div> : <div className="search-results message-search-results">
+        <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false); setSearchActiveIndex(-1) }} onKeyDown={handleSearchKeyDown} placeholder="Search messages, people, and channels" aria-autocomplete="list" aria-controls={searchQuery.trim() && !searched ? 'search-suggestions' : undefined} aria-expanded={Boolean(searchQuery.trim() && !searched)} autoFocus /><button type="button" onClick={() => setSearchOpen(false)}><X /></button></form>
+        {!searched && searchQuery.trim() ? <div id="search-suggestions" className="search-suggestions" role="listbox" aria-label="Search suggestions">
+          {searchSuggestions.some((suggestion) => suggestion.type === 'channel') && <p>Channels</p>}
+          {searchSuggestions.map((suggestion, index) => suggestion.type === 'channel' ? <button key={`channel-${suggestion.name}`} type="button" className={index === searchActiveIndex ? 'active' : ''} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="suggestion-icon"><Hash /></span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.name}</strong><small>Channel</small></span><ChevronRight /></button> : null)}
+          {searchSuggestions.some((suggestion) => suggestion.type === 'member') && <p>People</p>}
+          {searchSuggestions.map((suggestion, index) => suggestion.type === 'member' ? <button key={`member-${suggestion.member.username}`} type="button" className={`${index === searchActiveIndex ? 'active ' : ''}${suggestion.member.name === 'Christian' ? 'dm-search-result' : ''}`} aria-label={`Open DM with ${suggestion.member.name}`} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="search-avatar" style={{ background: suggestion.member.color }}>{suggestion.member.name[0]}</span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.member.name}</strong><small>@{suggestion.member.username} · Direct message</small></span><ChevronRight /></button> : null)}
+          <button type="submit" className="search-all" onClick={() => { setSearched(true); setSearchActiveIndex(-1); completeSearchIfMatched() }}><span className="suggestion-icon"><Search /></span><span><strong>Search for “{searchQuery}”</strong><small>Messages, files, and more</small></span><kbd>Enter</kbd></button>
+        </div> : !searched ? activeLesson === 'dms'
+          ? <div className="search-empty"><UserRound /><h3>Find Christian</h3><p>Type <button onClick={() => setSearchQuery('Christian')}>Christian</button> to find their Hack Club account.</p></div>
+          : <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><div><kbd>Enter</kbd> to search</div></div>
+        : <div className="search-results message-search-results">
             <div className="search-results-header"><div><strong>{searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}</strong><span> for “{searchQuery}”</span></div><button type="button">Most relevant <ChevronDown /></button></div>
             <div className="search-filter-row"><span>Messages</span>{parsedSearch.scope && <span><Hash size={12} /> In: {parsedSearch.scope}</span>}<button type="button">From</button><button type="button">After</button></div>
             {searchResults.map((result) => <button key={`${result.channel}-${result.message.id}`} onClick={() => { joinChannel(result.channel, true); setSearchOpen(false) }}>
