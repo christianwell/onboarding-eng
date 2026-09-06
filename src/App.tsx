@@ -331,6 +331,7 @@ function App() {
       : resolveProgramCopy(configuredLessonCopy.hint, config!),
   } : null
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
+  const activeTarget = isActiveComplete ? null : activeLesson
   const allLessonsComplete = config ? completed.length === lessons.length : false
   const allComplete = finished && allLessonsComplete
   const guideProgress = lessons.length ? Math.round(((lessonIndex + 1) / (lessons.length + 1)) * 100) : 0
@@ -431,12 +432,18 @@ function App() {
       }
 
       let left = rect.right + 24
+      let stacked = false
       if (left + guideWidth > window.innerWidth - 12) left = rect.left - guideWidth - 24
-      if (left < 12) left = Math.max(12, (window.innerWidth - guideWidth) / 2)
-      const top = Math.min(
-        Math.max(12, rect.top + rect.height / 2 - guideHeight / 2),
-        Math.max(12, window.innerHeight - guideHeight - 12),
-      )
+      if (left < 12) {
+        left = Math.max(12, (window.innerWidth - guideWidth) / 2)
+        stacked = true
+      }
+      const bottomLimit = Math.max(12, window.innerHeight - guideHeight - 12)
+      const top = stacked
+        ? rect.top - guideHeight - 24 >= 12
+          ? rect.top - guideHeight - 24
+          : Math.min(rect.bottom + 24, bottomLimit)
+        : Math.min(Math.max(12, rect.top + rect.height / 2 - guideHeight / 2), bottomLimit)
       setGuidePosition({ left, top })
     }
 
@@ -710,7 +717,7 @@ function App() {
           <button className="history-button" aria-label="Forward in history"><ArrowRight /></button>
           <button className="history-button" aria-label="Show history"><Clock3 /></button>
         </div>
-        <button className={`search-trigger ${activeLesson === 'search' ? 'target-pulse' : ''}`} onClick={() => setSearchOpen(true)}>
+        <button className={`search-trigger ${activeTarget === 'search' ? 'target-pulse' : ''}`} onClick={() => setSearchOpen(true)}>
           <Search size={16} /><span>Search Hack Club</span><kbd>⌘ K</kbd>
         </button>
         <div className="profile-mini"><CircleHelp size={19} /><div>Y</div></div>
@@ -745,7 +752,7 @@ function App() {
           <p title={`${defaultChannels.length} channels will be added by Hack Club Auth`}><ChevronDown size={14} /> Channels</p>
           {joinedChannels.map((name) => {
             const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
-            return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${activeLesson === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''}`} onClick={() => selectChannel(name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
+            return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${activeTarget === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''}`} onClick={() => selectChannel(name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
           })}
           <button onClick={() => { setDirectMessage(null); setChannelView('discover'); setSidebarOpen(false) }}><Plus size={16} /> Add channels</button>
         </div>
@@ -764,7 +771,7 @@ function App() {
             <button><UserRound size={17} /><span>82,896</span></button>
             <button className="huddle-button"><Headphones size={17} /><ChevronDown size={14} /></button>
             <div className="notification-wrap">
-              <button className={activeLesson === 'notifications' ? 'target-pulse' : ''} aria-label="Notification settings" onClick={() => setNotificationsOpen((value) => !value)}>{notificationMode === 'Mentions & DMs' ? <BellRing size={19} /> : <Bell size={19} />}</button>
+              <button className={activeTarget === 'notifications' ? 'target-pulse' : ''} aria-label="Notification settings" onClick={() => setNotificationsOpen((value) => !value)}>{notificationMode === 'Mentions & DMs' ? <BellRing size={19} /> : <Bell size={19} />}</button>
               {notificationsOpen && <div className="notification-menu"><strong>Notify me about…</strong>{['All new messages', 'Mentions & DMs', 'Nothing'].map((mode) => <button key={mode} onClick={() => { setNotificationMode(mode); setNotificationsOpen(false); if (mode === 'Mentions & DMs') completeLesson('notifications') }}><span>{mode}</span>{notificationMode === mode && <Check size={17} />}</button>)}</div>}
             </div>
             <button aria-label="Search in channel"><Search size={19} /></button>
@@ -843,9 +850,9 @@ function App() {
                 {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
                 {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
                 {!directMessage && message.id === 2 && <div className="message-tools">
-                  <button className={activeLesson === 'reactions' ? 'target-action' : ''} onClick={() => { setMessages((current) => current.map((item) => item.id === 2 ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item)); completeLesson('reactions') }}><SmilePlus size={16} /> <span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
+                  <button className={activeTarget === 'reactions' && !threadOpen ? 'target-action' : ''} onClick={() => { setMessages((current) => current.map((item) => item.id === 2 ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item)); completeLesson('reactions') }}><SmilePlus size={16} /> <span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
                   {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
-                  <button className={activeLesson === 'threads' ? 'target-action' : ''} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle size={16} /> {message.replies} replies <span>View thread</span></button>
+                  <button className={activeTarget === 'threads' && !threadOpen ? 'target-action' : ''} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle size={16} /> {message.replies} replies <span>View thread</span></button>
                 </div>}
                 {!directMessage && message.id !== 2 && (message.reactions || message.replies) && <div className="message-tools reaction-row">
                   {message.reactions && <button><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
@@ -858,7 +865,7 @@ function App() {
           ))}
         </div>}
 
-        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${activeTarget === 'messages' || activeTarget === 'pings' || activeTarget === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
           <div className="format-bar" role="toolbar" aria-label="Formatting">
             <button type="button" aria-label="Bold"><strong>B</strong></button>
             <button type="button" aria-label="Italic"><em>I</em></button>
@@ -938,7 +945,7 @@ function App() {
           <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
           <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
         </>}
-        <form className={`thread-composer ${activeLesson === 'threads' ? 'target-composer' : ''}`} onSubmit={sendThreadReply}><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder={`Reply to ${threadMessage.author}…`} autoFocus /><button disabled={!threadDraft.trim()}><Send size={17} /></button></form>
+        <form className={`thread-composer ${activeTarget === 'threads' ? 'target-composer' : ''}`} onSubmit={sendThreadReply}><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder={`Reply to ${threadMessage.author}…`} autoFocus /><button disabled={!threadDraft.trim()}><Send size={17} /></button></form>
       </aside>}
 
       {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
