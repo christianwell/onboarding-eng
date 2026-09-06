@@ -23,7 +23,6 @@ import {
   Moon,
   MoreHorizontal,
   Plus,
-  Rocket,
   Search,
   Send,
   Settings,
@@ -540,7 +539,7 @@ function App() {
   if (!config) return <main className="load-state"><div className="spinner" /><p>Preparing your flight…</p></main>
 
   return (
-    <main className="app-shell" style={{ '--program': config.program.color } as React.CSSProperties}>
+    <main className="app-shell coach-card-shell card-style-dark" style={{ '--program': config.program.color } as React.CSSProperties}>
       <header className="topbar">
         <button className="mobile-menu" aria-label="Open channel list" onClick={() => setSidebarOpen(true)}><Menu /></button>
         <div className="topbar-history">
@@ -752,7 +751,7 @@ function App() {
             <button onClick={() => setSafetyWrong(true)}><MessageCircle size={17} /><span><strong>Handle it by yourself</strong><small>Keep chatting until they stop</small></span></button>
             {safetyWrong && <p className="quiz-feedback">Not quite. You never have to handle this alone—stop engaging and report it.</p>}
             <a href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>
-          </div> : !isActiveComplete && <div className="task-box"><span><Rocket size={18} /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
+          </div> : !isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
           {!isActiveComplete && <details><summary>Need a hint?</summary><p>{activeCopy!.hint}</p></details>}
           {isActiveComplete && <div className="success-box"><CheckCircle2 /><div><strong>Mission complete!</strong><span>{allLessonsComplete ? 'Everything’s complete. Finish when you’re ready.' : 'Nice work. Your next skill is ready.'}</span></div></div>}
         </div>}

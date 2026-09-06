@@ -806,6 +806,7 @@ body { background: #83388a; }
 .channel-tabs { height: 40px; padding: 0 8px; }
 .channel-tabs button { padding: 0 13px; font-size: 14px; font-weight: 700; }
 .channel-tabs button.active::after { right: 9px; left: 9px; height: 2px; background: #83388a; }
+
 .messages { padding: 8px 0 16px; }
 .channel-intro { padding: 28px 20px 18px; }
 .history-status { position: relative; min-height: 90px; display: grid; place-items: start center; padding-top: 5px; color: #616061; }
@@ -854,4 +855,71 @@ body { background: #83388a; }
   .channel-tabs { height: 40px; }
   .composer { min-height: 94px; margin: 0 10px 10px; }
   .thread-panel { top: 40px; right: 4px; bottom: 4px; width: calc(100% - 8px); }
+}
+
+/* Onboarding card, based on shadcn's header/content/footer composition. */
+.coach-card-shell .coach {
+  width: 380px;
+  min-width: 300px;
+  max-height: 88vh;
+  padding: 20px;
+  overflow-y: auto;
+  color: #18181b;
+  border: 1px solid rgba(24,24,27,.12);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,.14), 0 1px 2px rgba(0,0,0,.06);
+  backdrop-filter: none;
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  animation: hcPop .22s ease-out;
+}
+.coach-card-shell .coach::before { display: none; }
+.coach-card-shell .coach-brand { margin: 0 0 14px; padding: 0; }
+.coach-card-shell .guide-brand { color: #18181b; font-size: 12px; }
+.coach-card-shell .coach-brand .guide-brand img { width: 18px; filter: none; }
+.coach-card-shell .guide-step { padding: 3px 8px; color: #71717a; border-color: #e4e4e7; background: #fafafa; font-size: 10px; }
+.coach-card-shell .guide-mascot { display: none; }
+.coach-card-shell .coach .progress-track { height: 3px; margin: 0 0 18px; background: #e4e4e7; }
+.coach-card-shell .coach .progress-track i { background: var(--program); box-shadow: none; }
+.coach-card-shell .coach .lesson-card { margin: 0; padding: 0; color: #18181b; }
+.coach-card-shell .coach .lesson-eyebrow { margin-bottom: 7px; color: #71717a; font-size: 9px; letter-spacing: .08em; }
+.coach-card-shell .coach .lesson-card h2 { max-width: none; margin-bottom: 8px; color: #18181b; font-size: 20px; line-height: 1.25; }
+.coach-card-shell .coach .lesson-card h2 > span { font-size: 18px; }
+.coach-card-shell .coach .lesson-body { margin: 0 0 17px; color: #71717a; font-size: 13px; line-height: 1.5; }
+.coach-card-shell .coach .task-box { padding: 11px; color: #27272a; border: 1px solid #e4e4e7; border-radius: 9px; background: #fafafa; }
+.coach-card-shell .coach .task-box > span { width: 32px; height: 32px; color: #52525b; background: #fff; box-shadow: 0 0 0 1px #e4e4e7; }
+.coach-card-shell .coach .task-box small { color: #71717a; }
+.coach-card-shell .coach .task-box strong { color: #27272a; font-size: 11px; }
+.coach-card-shell .coach .lesson-card details { color: #71717a; }
+.coach-card-shell .coach .lesson-card details p { color: #52525b; border-left-color: #d4d4d8; }
+.coach-card-shell .coach .success-box { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
+.coach-card-shell .coach .success-box span { color: #3f7653; }
+.coach-card-shell .guide-actions { padding-top: 2px; }
+.coach-card-shell .guide-actions button { color: #3f3f46; border-color: #e4e4e7; border-radius: 8px; background: #fff; }
+.coach-card-shell .guide-actions button:hover { color: #18181b; background: #f4f4f5; transform: none; }
+.coach-card-shell .guide-actions .next-button { color: #fff; border-color: #18181b; border-radius: 8px; background: #18181b; box-shadow: none; }
+.coach-card-shell .guide-actions .next-button:hover { background: #27272a; box-shadow: none; }
+.coach-card-shell .intro-facts span { color: #52525b; border-color: #e4e4e7; background: #fafafa; }
+
+.card-style-dark .coach { color: #fafafa; border-color: #3f3f46; background: #18181b; box-shadow: 0 14px 38px rgba(0,0,0,.3); }
+.card-style-dark .guide-brand,
+.card-style-dark .coach .lesson-card h2 { color: #fafafa; }
+.card-style-dark .guide-step { color: #a1a1aa; border-color: #3f3f46; background: #27272a; }
+.card-style-dark .coach .progress-track { background: #3f3f46; }
+.card-style-dark .coach .progress-track i { background: #fff; }
+.card-style-dark .coach .lesson-eyebrow { color: #a1a1aa; }
+.card-style-dark .coach .lesson-body { color: #a1a1aa; }
+.card-style-dark .coach .task-box { grid-template-columns: 54px 1fr; color: #f4f4f5; border-color: #3f3f46; background: #27272a; }
+.card-style-dark .coach .task-box > span { width: 54px; height: 42px; color: #f4f4f5; border-color: transparent; background: transparent; box-shadow: none; }
+.card-style-dark .coach .task-box > span img { width: 54px; height: 42px; object-fit: contain; }
+.card-style-dark .coach .task-box small { color: #a1a1aa; }
+.card-style-dark .coach .task-box strong { color: #f4f4f5; }
+.card-style-dark .coach .lesson-card details,
+.card-style-dark .coach .lesson-card details p { color: #a1a1aa; }
+.card-style-dark .guide-actions button { color: #d4d4d8; border-color: #3f3f46; background: #27272a; }
+.card-style-dark .guide-actions .next-button { color: #18181b; border-color: #fafafa; background: #fafafa; }
+.card-style-dark .intro-facts span { color: #d4d4d8; border-color: #3f3f46; background: #27272a; }
+
+@media (max-width: 620px) {
+  .coach-card-shell .coach { width: calc(100vw - 16px); min-width: 0; padding: 15px 16px 13px; }
 }
