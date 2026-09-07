@@ -8,6 +8,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   CircleHelp,
   Clock3,
@@ -31,10 +32,14 @@ import {
   Sparkles,
   SquarePen,
   Star,
+  Sun,
   UserRound,
   Video,
   X,
 } from 'lucide-react'
+import confetti from 'canvas-confetti'
+import NumberFlow from '@number-flow/react'
+import { AnimatePresence, arc, motion, MotionConfig } from 'motion/react'
 import { trackEvent, trackLessonCompleted } from './analytics'
 import { defaultLessonCopy, getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig } from './program'
 
@@ -109,7 +114,7 @@ function getMentionToken(value: string, caret: number) {
 }
 
 const guideAssets = {
-  flag: 'https://raw.githubusercontent.com/christianwell/welcome-to-slack/main/assets/flag-orpheus.svg',
+  flag: 'https://assets.hackclub.com/flag-standalone-bw.svg',
   mascot: 'https://raw.githubusercontent.com/christianwell/welcome-to-slack/main/assets/orpheus-wink.png',
 }
 
@@ -203,8 +208,101 @@ function makeDirectMessages(name = 'Christian'): Message[] {
   }]
 }
 
+const hackClubPalette = ['#ff8c37', '#f1c40f', '#33d6a6', '#338eda', '#a633d6']
+// The completion screen hands off to Hack Club Auth on this timer, so the
+// fireworks are scaled to the window the modal is actually on screen for.
+const completionDelay = 2500
+
+function randomInRange(min: number, max: number) {
+  return Math.random() * (max - min) + min
+}
+
+// Shells bursting in from both sides, thinning out as the handoff approaches.
+function fireCompletionFireworks(programColor: string) {
+  const end = Date.now() + completionDelay
+  const defaults = {
+    startVelocity: 30,
+    spread: 360,
+    ticks: 60,
+    zIndex: 120,
+    disableForReducedMotion: true,
+    colors: [programColor, ...hackClubPalette],
+  }
+  const interval = window.setInterval(() => {
+    const timeLeft = end - Date.now()
+    if (timeLeft <= 0) return window.clearInterval(interval)
+    const particleCount = 50 * (timeLeft / completionDelay)
+    confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } })
+    confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } })
+  }, 250)
+  return () => window.clearInterval(interval)
+}
+
+// Two cannons angled in from the lower corners, in the Hack Club palette.
+function fireMissionConfetti(programColor: string) {
+  const shared = {
+    particleCount: 60,
+    spread: 62,
+    startVelocity: 48,
+    ticks: 240,
+    zIndex: 120,
+    disableForReducedMotion: true,
+    colors: [programColor, ...hackClubPalette],
+  }
+  confetti({ ...shared, angle: 60, origin: { x: 0, y: 0.7 } })
+  confetti({ ...shared, angle: 120, origin: { x: 1, y: 0.7 } })
+}
+
+const guideSpring = { type: 'spring' as const, visualDuration: 0.42, bounce: 0.18 }
+const guideArcSpring = { ...guideSpring, path: arc({ strength: 0.14 }) }
+// The highlight box wants a quick snap, not a long settle.
+const spotlightSpring = { type: 'spring' as const, visualDuration: 0.36, bounce: 0.2 }
+// Traced off the reference clip: rises 1.48x its own height while scaling down
+// from 1.59, on one decelerating curve with no overshoot.
+const guideRise = { type: 'spring' as const, visualDuration: 0.5, bounce: 0 }
+const minimumBootMs = 480
+
+function BootScreen() {
+  return <>
+    <img src={guideAssets.flag} alt="Hack Club" />
+    <div className="spinner" />
+  </>
+}
+
+type Theme = 'light' | 'dark'
+
+// Slack's own appearance default is Light, not "follow the OS".
+function readStoredTheme(): Theme {
+  return localStorage.getItem('onboarding:theme') === 'dark' ? 'dark' : 'light'
+}
+
+// Slack renders @people and #channels as inline blue chips rather than plain text.
+const mentionPattern = /(@[A-Za-z][A-Za-z0-9._-]*|#[a-z0-9][a-z0-9-]*)/g
+// Kept separate and non-global: `test` on a /g regex carries lastIndex between calls.
+const isMentionToken = /^(@[A-Za-z]|#[a-z0-9])/
+
+function renderMessageBody(body: string) {
+  return body.split(mentionPattern).map((part, index) => (
+    isMentionToken.test(part)
+      ? <span className="mrkdwn-mention" key={index}>{part}</span>
+      : part
+  ))
+}
+
 function Avatar({ message }: { message: Message }) {
   return <div className="avatar" style={{ background: message.color }}>{message.avatar}</div>
+}
+
+// Slack fronts a thread summary with the repliers' avatars.
+const replyFacepile = [
+  { initial: 'L', color: '#4ca58b' },
+  { initial: 'A', color: '#e27945' },
+]
+
+function ReplyFacepile() {
+  return <span className="reply-facepile" aria-hidden="true">
+    {replyFacepile.map((person) => <span key={person.initial} style={{ background: person.color }}>{person.initial}</span>)}
+  </span>
 }
 
 function App() {
@@ -227,6 +325,7 @@ function App() {
   const [threadMessage, setThreadMessage] = useState<Message | null>(null)
   const [resolvedThreads, setResolvedThreads] = useState<number[]>([])
   const [threadDraft, setThreadDraft] = useState('')
+  const [alsoSendToChannel, setAlsoSendToChannel] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1)
@@ -237,8 +336,29 @@ function App() {
   const [safetyWrong, setSafetyWrong] = useState(false)
   const [finished, setFinished] = useState(false)
   const [spotlight, setSpotlight] = useState<OverlayRect | null>(null)
+  const [spotlightInPanel, setSpotlightInPanel] = useState(false)
+  const [hasPlaced, setHasPlaced] = useState(false)
+  const [booting, setBooting] = useState(true)
+  const bootStartedAt = useRef(Date.now())
+  const lastGuidePosition = useRef<{ left: number; top: number } | null>(null)
   const [guidePosition, setGuidePosition] = useState<{ left: number; top: number } | null>(null)
+  const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const composerRef = useRef<HTMLInputElement>(null)
+  const messageListRef = useRef<HTMLDivElement>(null)
+  const messageScrollRef = useRef<{ conversation: string; count: number } | null>(null)
+  const messageScrollInitializedRef = useRef(false)
+
+  const isDark = theme === 'dark'
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    const next: Theme = isDark ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('onboarding:theme', next)
+  }
 
   useEffect(() => {
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
@@ -314,6 +434,7 @@ function App() {
         : []
     }).slice(0, 12)
   }, [config, parsedSearch, searchableChannels, searched])
+  const christianInResults = searchSuggestions.some((suggestion) => suggestion.type === 'member' && suggestion.member.name === 'Christian')
   const visibleMessages = directMessage ? directMessages : messages
   const activeLesson = lessons[lessonIndex]
   const configuredLessonCopy = activeLesson
@@ -331,10 +452,36 @@ function App() {
       : resolveProgramCopy(configuredLessonCopy.hint, config!),
   } : null
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
-  const activeTarget = isActiveComplete ? null : activeLesson
+  // Nothing is a spotlight target until the reader has started the tour.
+  const targetLesson = introComplete && !isActiveComplete ? activeLesson : null
   const allLessonsComplete = config ? completed.length === lessons.length : false
   const allComplete = finished && allLessonsComplete
   const guideProgress = lessons.length ? Math.round(((lessonIndex + 1) / (lessons.length + 1)) * 100) : 0
+  const previousGuidePosition = lastGuidePosition.current
+  const movesDiagonally = Boolean(guidePosition && previousGuidePosition
+    && Math.abs(guidePosition.left - previousGuidePosition.left) > 2
+    && Math.abs(guidePosition.top - previousGuidePosition.top) > 2)
+
+  useEffect(() => {
+    if (guidePosition) lastGuidePosition.current = guidePosition
+  }, [guidePosition])
+
+  // The anchor starts at 0,0 because the first position is only known after a
+  // measuring pass. Snapping to that first placement keeps the card from
+  // sliding in diagonally from the corner; later moves animate.
+  useEffect(() => {
+    if (guidePosition && !hasPlaced) setHasPlaced(true)
+  }, [guidePosition, hasPlaced])
+
+  // Lift the curtain once the program is loaded; the card's entry waits for it
+  // so the rise plays against a settled workspace rather than behind a veil.
+  useEffect(() => {
+    if (!config) return
+    const remaining = Math.max(0, minimumBootMs - (Date.now() - bootStartedAt.current))
+    const timer = window.setTimeout(() => setBooting(false), remaining)
+    return () => window.clearTimeout(timer)
+  }, [config])
+
   const completionUrl = config ? getCompletionUrl(config, window.location.href) : ''
   const returnsToFlow = config ? completionUrl !== config.completion.auth_url : false
 
@@ -354,8 +501,12 @@ function App() {
     window.dispatchEvent(new CustomEvent(completion.type, { detail: completion }))
     if (window.parent !== window) window.parent.postMessage(completion, '*')
 
-    const redirect = window.setTimeout(() => window.location.assign(completionUrl), 2500)
-    return () => window.clearTimeout(redirect)
+    const stopFireworks = fireCompletionFireworks(config.program.color)
+    const redirect = window.setTimeout(() => window.location.assign(completionUrl), completionDelay)
+    return () => {
+      stopFireworks()
+      window.clearTimeout(redirect)
+    }
   }, [allComplete, completionUrl, config, returnsToFlow])
 
   useLayoutEffect(() => {
@@ -372,7 +523,7 @@ function App() {
         : activeLesson === 'threads' && threadOpen
         ? '.thread-composer'
         : activeLesson === 'dms'
-          ? directMessage === 'Christian' ? '.target-composer' : searchQuery.toLowerCase().includes('christian') ? '.dm-search-result' : searchOpen ? '.search-modal input' : '.search-trigger'
+          ? directMessage === 'Christian' ? '.target-composer' : christianInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : '.search-trigger'
         : activeLesson === 'channels'
           ? '.target-sidebar'
           : activeLesson === 'messages' || activeLesson === 'pings'
@@ -388,10 +539,20 @@ function App() {
 
       const guideWidth = guide.offsetWidth
       const guideHeight = guide.offsetHeight
+      const insideSearchPanel = Boolean(target?.closest('.search-modal'))
+      const isSearchField = Boolean(target?.matches('.search-modal input'))
+      // No ring for a target hidden behind the panel, nor for the panel's own
+      // field — that already has focus and a caret.
+      const skipRing = (searchOpen && Boolean(target) && !insideSearchPanel) || isSearchField
+      const ringInPanel = insideSearchPanel && !isSearchField
+      setSpotlightInPanel(ringInPanel)
+
       if (isMobile) {
-        if (target && !isActiveComplete) {
+        if (target && !isActiveComplete && !skipRing) {
           const rect = target.getBoundingClientRect()
-          setSpotlight({ left: Math.max(2, rect.left - 6), top: Math.max(2, rect.top - 6), width: rect.width + 12, height: rect.height + 12 })
+          setSpotlight(ringInPanel
+            ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+            : { left: Math.max(2, rect.left - 6), top: Math.max(2, rect.top - 6), width: rect.width + 12, height: rect.height + 12 })
         } else {
           setSpotlight(null)
         }
@@ -403,9 +564,14 @@ function App() {
         setGuidePosition({ left: 8, top })
         return
       }
+      // The search panel owns the top of the window whenever it is open, so the
+      // card parks bottom-left in every state — including once the lesson has
+      // auto-completed, which otherwise centres it straight onto the results.
+      const bottomLeft = { left: 12, top: Math.max(60, window.innerHeight - guideHeight - 12) }
+
       if (!target || isActiveComplete) {
         setSpotlight(null)
-        setGuidePosition({
+        setGuidePosition(searchOpen ? bottomLeft : {
           left: Math.max(12, (window.innerWidth - guideWidth) / 2),
           top: Math.max(12, (window.innerHeight - guideHeight) / 2),
         })
@@ -413,10 +579,15 @@ function App() {
       }
 
       const rect = target.getBoundingClientRect()
-      setSpotlight({ left: rect.left - 8, top: rect.top - 8, width: rect.width + 16, height: rect.height + 16 })
+      setSpotlight(skipRing ? null : ringInPanel
+        ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+        : { left: rect.left - 8, top: rect.top - 8, width: rect.width + 16, height: rect.height + 16 })
 
-      if (activeLesson === 'dms' && directMessage !== 'Christian') {
-        setGuidePosition({ left: 12, top: Math.max(60, window.innerHeight - guideHeight - 12) })
+      // The search panel is anchored to the top of the window, so the card drops
+      // to the bottom-left to stay clear of it — overlapping it both hides the
+      // results and swallows clicks meant for them.
+      if (searchOpen || (activeLesson === 'dms' && directMessage !== 'Christian')) {
+        setGuidePosition(bottomLeft)
         return
       }
 
@@ -431,35 +602,93 @@ function App() {
         return
       }
 
+      const clampLeft = (value: number) => Math.min(Math.max(12, value), Math.max(12, window.innerWidth - guideWidth - 12))
+      const clampTop = (value: number) => Math.min(Math.max(12, value), Math.max(12, window.innerHeight - guideHeight - 12))
+
       let left = rect.right + 24
-      let stacked = false
+      let top = clampTop(rect.top + rect.height / 2 - guideHeight / 2)
       if (left + guideWidth > window.innerWidth - 12) left = rect.left - guideWidth - 24
+
+      // Beside the target is the default. When neither side fits — a wide control
+      // like the search bar — sit below it instead of centring on top, so the guide
+      // never covers the thing it is asking the reader to click.
       if (left < 12) {
-        left = Math.max(12, (window.innerWidth - guideWidth) / 2)
-        stacked = true
+        left = clampLeft(rect.left + rect.width / 2 - guideWidth / 2)
+        const below = rect.bottom + 24
+        top = below + guideHeight <= window.innerHeight - 12 ? below : clampTop(rect.top - guideHeight - 24)
       }
-      const bottomLimit = Math.max(12, window.innerHeight - guideHeight - 12)
-      const top = stacked
-        ? rect.top - guideHeight - 24 >= 12
-          ? rect.top - guideHeight - 24
-          : Math.min(rect.bottom + 24, bottomLimit)
-        : Math.min(Math.max(12, rect.top + rect.height / 2 - guideHeight / 2), bottomLimit)
       setGuidePosition({ left, top })
     }
 
     const frame = requestAnimationFrame(positionGuide)
     window.addEventListener('resize', positionGuide)
+    const card = document.querySelector<HTMLElement>('.coach')
+    const observer = card ? new ResizeObserver(() => positionGuide()) : null
+    if (card && observer) observer.observe(card)
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', positionGuide)
+      observer?.disconnect()
     }
-  }, [activeLesson, allComplete, directMessage, introComplete, isActiveComplete, notificationsOpen, searchOpen, searchQuery, sidebarOpen, threadOpen])
+  }, [activeLesson, allComplete, christianInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, searchOpen, searchQuery, sidebarOpen, threadOpen])
+
+  // Cmd/Ctrl+Shift+R restarts the tour instead of resuming it. Clearing the
+  // saved progress before reloading means either path — our reload or the
+  // browser's own hard reload, which pages cannot cancel — lands on step one.
+  useEffect(() => {
+    if (!config) return
+    const restart = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.key.toLowerCase() !== 'r') return
+      event.preventDefault()
+      localStorage.removeItem(`onboarding:${config.program.slug}`)
+      window.location.reload()
+    }
+    window.addEventListener('keydown', restart)
+    return () => window.removeEventListener('keydown', restart)
+  }, [config])
+
+  // Slack dismisses its header menus on an outside click or Escape.
+  useEffect(() => {
+    if (!notificationsOpen) return
+    const close = (event: Event) => {
+      if (event.target instanceof Node && document.querySelector('.notification-wrap')?.contains(event.target)) return
+      setNotificationsOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setNotificationsOpen(false) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [notificationsOpen])
+
+  // Pin the initial conversation and newly sent messages to the bottom. A different
+  // conversation can contain more messages, so compare counts only within the same
+  // channel or DM instead of treating that larger count as a newly received message.
+  useEffect(() => {
+    const list = messageListRef.current
+    const count = visibleMessages.length
+    const conversation = directMessage ? `dm:${directMessage}` : `channel:${channel}`
+    const previous = messageScrollRef.current
+    const isInitialMount = !messageScrollInitializedRef.current && count > 0
+    if (list && (isInitialMount || previous?.conversation === conversation && count > previous.count)) {
+      list.scrollTop = list.scrollHeight
+    }
+    if (count > 0) messageScrollInitializedRef.current = true
+    messageScrollRef.current = { conversation, count }
+  }, [channel, directMessage, visibleMessages])
+
+  const addReaction = (id: number) => {
+    setMessages((current) => current.map((item) => item.id === id ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item))
+  }
 
   const completeLesson = (lesson: LessonId) => {
     if (activeLesson !== lesson || completed.includes(lesson) || !config) return
     const next = [...completed, lesson]
     setCompleted(next)
     localStorage.setItem(`onboarding:${config.program.slug}`, JSON.stringify({ completed: next }))
+    fireMissionConfetti(config.program.color)
     trackLessonCompleted(lesson, config.program.slug, lessonIndex + 1, lessons.length)
   }
 
@@ -581,8 +810,20 @@ function App() {
 
   const sendThreadReply = (event: FormEvent) => {
     event.preventDefault()
-    if (!threadDraft.trim()) return
+    const body = threadDraft.trim()
+    if (!body) return
+    if (alsoSendToChannel && !directMessage) {
+      setMessages((current) => [...current, {
+        id: Date.now(),
+        author: 'You',
+        avatar: 'Y',
+        color: config?.program.color ?? '#6c5ce7',
+        time: 'now',
+        body,
+      }])
+    }
     setThreadDraft('')
+    setAlsoSendToChannel(false)
     completeLesson('threads')
   }
 
@@ -654,6 +895,7 @@ function App() {
     }
     setLessonIndex((value) => value + 1)
     setSafetyWrong(false)
+    setSearchOpen(false)
     setSearched(false)
     setSearchQuery('')
     setThreadOpen(false)
@@ -706,10 +948,16 @@ function App() {
     return [...tabs, { view: 'files', label: 'Files & links', icon: 'files' }, { view: 'pins', label: 'Pins', icon: 'pins' }]
   }, [channel, config])
 
-  if (!config) return <main className="load-state"><div className="spinner" /><p>Preparing your flight…</p></main>
+  if (!config) return <main className="boot-overlay"><BootScreen /></main>
 
   return (
-    <main className="app-shell coach-card-shell card-style-dark" style={{ '--program': config.program.color } as React.CSSProperties}>
+    <MotionConfig reducedMotion="user">
+      <AnimatePresence>
+        {booting && <motion.div className="boot-overlay" exit={{ opacity: 0 }} transition={{ duration: 0.34, ease: 'easeOut' }} aria-hidden="true">
+          <BootScreen />
+        </motion.div>}
+      </AnimatePresence>
+    <main className={`app-shell ${threadOpen && threadMessage ? 'thread-open' : ''}`} style={{ '--program': config.program.color } as React.CSSProperties}>
       <header className="topbar">
         <button className="mobile-menu" aria-label="Open channel list" onClick={() => setSidebarOpen(true)}><Menu /></button>
         <div className="topbar-history">
@@ -717,7 +965,7 @@ function App() {
           <button className="history-button" aria-label="Forward in history"><ArrowRight /></button>
           <button className="history-button" aria-label="Show history"><Clock3 /></button>
         </div>
-        <button className={`search-trigger ${activeTarget === 'search' ? 'target-pulse' : ''}`} onClick={() => setSearchOpen(true)}>
+        <button className={`search-trigger ${targetLesson === 'search' ? 'target-pulse' : ''}`} onClick={() => setSearchOpen(true)}>
           <Search size={16} /><span>Search Hack Club</span><kbd>⌘ K</kbd>
         </button>
         <div className="profile-mini"><CircleHelp size={19} /><div>Y</div></div>
@@ -732,7 +980,7 @@ function App() {
         <button><MoreHorizontal /><span>More</span></button>
         <div className="rail-spacer" />
         <button className="rail-utility" aria-label="Add workspace"><Plus /></button>
-        <button className="rail-utility" aria-label="Theme"><Moon /></button>
+        <button className="rail-utility" aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`} title={`Switch to ${isDark ? 'light' : 'dark'} theme`} onClick={toggleTheme}>{isDark ? <Sun /> : <Moon />}</button>
         <button className="rail-profile"><span>Y</span></button>
       </nav>
 
@@ -744,7 +992,6 @@ function App() {
         <button className="sidebar-item"><Send size={16} /> Drafts &amp; sent</button>
         <button className="sidebar-item"><UserRound size={16} /> Directories</button>
         <button className="sidebar-item"><CheckCircle2 size={16} /> 2 tasks left</button>
-        <button className="more-unreads">↓ Unread mentions</button>
         <div className="sidebar-divider" />
         <button className="sidebar-item"><Star size={16} /> Starred</button>
         <p className="starred-empty">Drag and drop important stuff here</p>
@@ -752,7 +999,7 @@ function App() {
           <p title={`${defaultChannels.length} channels will be added by Hack Club Auth`}><ChevronDown size={14} /> Channels</p>
           {joinedChannels.map((name) => {
             const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
-            return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${activeTarget === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''}`} onClick={() => selectChannel(name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
+            return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''}`} onClick={() => selectChannel(name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
           })}
           <button onClick={() => { setDirectMessage(null); setChannelView('discover'); setSidebarOpen(false) }}><Plus size={16} /> Add channels</button>
         </div>
@@ -771,7 +1018,7 @@ function App() {
             <button><UserRound size={17} /><span>82,896</span></button>
             <button className="huddle-button"><Headphones size={17} /><ChevronDown size={14} /></button>
             <div className="notification-wrap">
-              <button className={activeTarget === 'notifications' ? 'target-pulse' : ''} aria-label="Notification settings" onClick={() => setNotificationsOpen((value) => !value)}>{notificationMode === 'Mentions & DMs' ? <BellRing size={19} /> : <Bell size={19} />}</button>
+              <button className={targetLesson === 'notifications' ? 'target-pulse' : ''} aria-label="Notification settings" onClick={() => setNotificationsOpen((value) => !value)}>{notificationMode === 'Mentions & DMs' ? <BellRing size={19} /> : <Bell size={19} />}</button>
               {notificationsOpen && <div className="notification-menu"><strong>Notify me about…</strong>{['All new messages', 'Mentions & DMs', 'Nothing'].map((mode) => <button key={mode} onClick={() => { setNotificationMode(mode); setNotificationsOpen(false); if (mode === 'Mentions & DMs') completeLesson('notifications') }}><span>{mode}</span>{notificationMode === mode && <Check size={17} />}</button>)}</div>}
             </div>
             <button aria-label="Search in channel"><Search size={19} /></button>
@@ -838,7 +1085,7 @@ function App() {
           </>}
         </div>}
 
-        {(directMessage || channelView === 'messages') && <div className="messages" aria-live="polite">
+        {(directMessage || channelView === 'messages') && <div className="messages" ref={messageListRef} aria-live="polite">
           {(!introComplete || directMessage) && <div className="channel-intro"><div>{directMessage ? <UserRound /> : <Hash />}</div><h1>{directMessage ? directMessage : `Welcome to #${channel}!`}</h1><p>{channelPurpose}</p></div>}
           {introComplete && !directMessage && <div className="history-status"><span>Today <ChevronDown /></span><p>Loading history…</p></div>}
           {visibleMessages.map((message) => (
@@ -846,18 +1093,24 @@ function App() {
               <Avatar message={message} />
               <div className="message-content">
                 <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time></div>
-                <p>{message.body}</p>
+                <p>{renderMessageBody(message.body)}</p>
                 {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
                 {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
                 {!directMessage && message.id === 2 && <div className="message-tools">
-                  <button className={activeTarget === 'reactions' && !threadOpen ? 'target-action' : ''} onClick={() => { setMessages((current) => current.map((item) => item.id === 2 ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item)); completeLesson('reactions') }}><SmilePlus size={16} /> <span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
+                  <button aria-label={`${message.reactionEmoji ?? '⭐'} ${message.reactions}`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
                   {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
-                  <button className={activeTarget === 'threads' && !threadOpen ? 'target-action' : ''} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle size={16} /> {message.replies} replies <span>View thread</span></button>
+                  <button className={`reaction-add ${targetLesson === 'reactions' ? 'target-action' : ''}`} aria-label={`Add a ${message.reactionEmoji ?? '⭐'} reaction`} onClick={() => { addReaction(message.id); completeLesson('reactions') }}><SmilePlus /></button>
+                  <button className={`reply-bar ${targetLesson === 'threads' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    <ReplyFacepile /><strong>{message.replies} replies</strong><span>View thread</span>
+                  </button>
                 </div>}
                 {!directMessage && message.id !== 2 && (message.reactions || message.replies) && <div className="message-tools reaction-row">
-                  {message.reactions && <button><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
+                  {message.reactions && <button aria-label={`${message.reactionEmoji ?? '✨'} ${message.reactions}`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
                   {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
-                  {message.replies && <button onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle size={15} /> {message.replies} {message.replies === 1 ? 'reply' : 'replies'} <span>View thread</span></button>}
+                  {message.reactions && <button className="reaction-add" aria-label={`Add a ${message.reactionEmoji ?? '✨'} reaction`} onClick={() => addReaction(message.id)}><SmilePlus /></button>}
+                  {message.replies && <button className="reply-bar" onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    <ReplyFacepile /><strong>{message.replies} {message.replies === 1 ? 'reply' : 'replies'}</strong><span>View thread</span>
+                  </button>}
                 </div>}
               </div>
               <div className="message-hover-actions" aria-hidden="true"><button tabIndex={-1}>🙂</button><button tabIndex={-1} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle /></button><button tabIndex={-1}><MoreHorizontal /></button></div>
@@ -865,7 +1118,7 @@ function App() {
           ))}
         </div>}
 
-        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${activeTarget === 'messages' || activeTarget === 'pings' || activeTarget === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
           <div className="format-bar" role="toolbar" aria-label="Formatting">
             <button type="button" aria-label="Bold"><strong>B</strong></button>
             <button type="button" aria-label="Italic"><em>I</em></button>
@@ -882,37 +1135,61 @@ function App() {
             <span />
           </div>
           <div className="compose-row"><input ref={composerRef} value={draft} onChange={(event) => updateDraft(event.target.value, event.target.selectionStart ?? event.target.value.length)} onKeyDown={handleComposerKeyDown} placeholder={directMessage ? `Message ${directMessage}` : `Message #${channel}`} aria-label={directMessage ? `Message ${directMessage}` : `Message ${channel}`} aria-autocomplete="list" aria-controls={mentionMenuOpen ? 'mention-suggestions' : undefined} aria-expanded={mentionMenuOpen} /></div>
-          {mentionMenuOpen && <div id="mention-suggestions" className="mention-menu" role="listbox" aria-label="People to ping"><strong>Ping someone</strong>{mentionMatches.map((member, index) => <button key={member.username} type="button" role="option" aria-selected={index === mentionActiveIndex} className={index === mentionActiveIndex ? 'active' : ''} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setMentionActiveIndex(index)} onClick={() => selectMention(member.name)}><span className="dm-dot" style={{ background: member.color }}>{member.name[0]}<i /></span><span><b>{member.name}</b><small>@{member.username}</small></span></button>)}</div>}
-          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={activeTarget === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={openMentionMenu}><AtSign /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
+          {mentionMenuOpen && <div id="mention-suggestions" className="mention-menu" role="listbox" aria-label="People to ping"><strong>Ping someone</strong>{mentionMatches.map((member, index) => <button key={member.username} type="button" role="option" aria-selected={index === mentionActiveIndex} className={index === mentionActiveIndex ? 'active' : ''} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setMentionActiveIndex(index)} onClick={() => selectMention(member.name)}><span className="dm-dot" style={{ background: member.color }}>{member.name[0]}<i /></span><span><b>{member.name}</b><small>@{member.username}</small></span><kbd>Enter</kbd></button>)}</div>}
+          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={targetLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={openMentionMenu}><AtSign /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
           <div className="simulation-note"><ShieldCheck size={13} /> Practice mode · messages stay on this device</div>
         </form>}
         {!directMessage && channelView === 'messages' && isReadOnlyChannel(config, channel) && <div className="read-only-notice"><ShieldCheck /><div><strong>Only certain people can post in this channel</strong></div></div>}
       </section>
 
       {!allComplete && <>
-      {!spotlight && <div className="guide-dim" />}
+      {(!spotlight || spotlightInPanel) && <div className="guide-dim" />}
       {spotlight && <>
-        <div className="guide-spotlight" style={spotlight} />
-        {spotlight.top > 82 && <div className="guide-arrow" style={{ left: spotlight.left + spotlight.width / 2 - 18, top: spotlight.top - 74 }} aria-hidden="true">
+        <motion.div
+          className={`guide-spotlight ${spotlightInPanel ? 'guide-spotlight--in-panel' : ''}`}
+          initial={false}
+          animate={{ left: spotlight.left, top: spotlight.top, width: spotlight.width, height: spotlight.height }}
+          transition={spotlightSpring}
+        />
+        {!spotlightInPanel && spotlight.top > 82 && <motion.div
+          className="guide-arrow"
+          initial={false}
+          animate={{ left: spotlight.left + spotlight.width / 2 - 18, top: spotlight.top - 74 }}
+          transition={spotlightSpring}
+          aria-hidden="true"
+        >
           {[0, 1, 2].map((item) => <ChevronDown key={item} />)}
-        </div>}
+        </motion.div>}
       </>}
 
-      <aside className={`coach coach-${activeLesson} ${introComplete ? 'coach-active' : 'coach-intro'} ${activeLesson === 'dms' && searchOpen ? 'coach-over-modal' : ''}`} style={guidePosition ?? undefined} role="dialog" aria-live="polite" aria-label={`${config.program.name} onboarding guide`}>
+      <motion.div
+        className={`coach-anchor ${mentionMenuOpen ? 'coach-under-mention' : ''} ${searchOpen ? 'coach-beside-panel' : ''}`}
+        initial={false}
+        animate={{ x: guidePosition?.left ?? 0, y: guidePosition?.top ?? 0 }}
+        transition={hasPlaced ? (movesDiagonally ? guideArcSpring : guideSpring) : { duration: 0 }}
+      >
+      <motion.aside
+        className={`coach coach-${activeLesson} ${introComplete ? 'coach-active' : 'coach-intro'}`}
+        initial={{ y: '148%', scale: 1.592 }}
+        animate={booting ? { y: '148%', scale: 1.592 } : { y: 0, scale: 1 }}
+        transition={guideRise}
+        role="dialog"
+        aria-live="polite"
+        aria-label={`${config.program.name} onboarding guide`}
+      >
         <div className="coach-brand">
-          <span className="guide-brand"><img src={guideAssets.flag} alt="" /> Hack Club</span>
-          <span className="guide-step">{introComplete ? `Step ${lessonIndex + 1} of ${lessons.length + 1}` : 'Welcome'}</span>
+          <span className="guide-brand"><img src={guideAssets.flag} alt="Hack Club" /></span>
+          <span className="guide-step" aria-label={introComplete ? `Step ${lessonIndex + 1} of ${lessons.length + 1}` : undefined}>{introComplete ? <><NumberFlow value={lessonIndex + 1} />/{lessons.length + 1}</> : 'Welcome'}</span>
         </div>
         <div className="guide-mascot"><img src={guideAssets.mascot} alt="" draggable="false" /></div>
         <div className="progress-track"><i style={{ width: introComplete ? `${guideProgress}%` : '0%' }} /></div>
 
         {!introComplete ? <div className="lesson-card guide-intro">
-          <p className="lesson-eyebrow">Welcome to {config.program.name}</p>
           <h2><span>👋</span>Let’s get you settled in</h2>
           <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! Practice here first; then Hack Club Auth will create your account and add your starter channels.</p>
-          <div className="intro-facts"><span><Clock3 size={14} /> About 5 minutes</span><span><Hash size={14} /> {defaultChannels.length} starter channels</span><span><ShieldCheck size={14} /> Nothing gets posted</span></div>
+          <p className="intro-meta"><Clock3 size={13} /> About 5 minutes</p>
         </div> : <div className="lesson-card">
-          <p className="lesson-eyebrow">{config.program.name} · Mission {lessonIndex + 1} · {activeCopy!.eyebrow}</p>
+          <p className="lesson-eyebrow">{activeCopy!.eyebrow}</p>
           <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
           <p className="lesson-body">{activeCopy!.body}</p>
           {activeLesson === 'safety' && !isActiveComplete ? <div className="safety-quiz">
@@ -923,29 +1200,63 @@ function App() {
             <a href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>
           </div> : !isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
           {!isActiveComplete && <details><summary>Need a hint?</summary><p>{activeCopy!.hint}</p></details>}
-          {isActiveComplete && <div className="success-box"><CheckCircle2 /><div><strong>Mission complete!</strong><span>{allLessonsComplete ? 'Everything’s complete. Finish when you’re ready.' : 'Nice work. Your next skill is ready.'}</span></div></div>}
+          {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong>{allLessonsComplete && <span>Everything’s complete. Finish when you’re ready.</span>}</div></div>}
         </div>}
         <div className="guide-actions">
-          {!introComplete ? <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button> : <div>
-              {lessonIndex > 0 && <button className="guide-ghost" onClick={() => setLessonIndex((value) => value - 1)}>← Back</button>}
+          {!introComplete ? <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button> : <>
+              {lessonIndex > 0 ? <button className="guide-ghost" onClick={() => setLessonIndex((value) => value - 1)}><ChevronLeft size={16} /> Back</button> : <span aria-hidden="true" />}
               {isActiveComplete && !allLessonsComplete && <button className="next-button" aria-label="Next mission" onClick={goNext}>Next <ChevronRight size={16} /></button>}
               {isActiveComplete && allLessonsComplete && <button className="next-button" onClick={() => setFinished(true)}>Complete onboarding <ChevronRight size={16} /></button>}
-            </div>}
+            </>}
         </div>
-      </aside>
+      </motion.aside>
+      </motion.div>
       </>}
 
       {threadOpen && threadMessage && <aside className="thread-panel">
         <header><div><strong>Thread</strong><span>#{channel}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
         <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p></div></article>
-        <div className="reply-count"><span /> {threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'} <span /></div>
+        <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
         {config.support && channel === config.support.channel ? <>
           <article className="message compact support-bot-reply"><div className="avatar support-bot-avatar">{config.support.bot_name[0]}</div><div className="message-content"><div className="message-meta"><strong>{config.support.bot_name}</strong><span className="bot-label">APP</span><time>just now</time></div><p>{config.support.acknowledgement.replaceAll('{{author}}', threadMessage.author).replaceAll('{{program}}', config.program.name)}</p><button className="thread-faq-link" onClick={() => { setThreadOpen(false); setChannelView('faq') }}><FileText /> {config.support.faq_title}</button><div className="support-ticket-row"><button disabled={resolvedThreads.includes(threadMessage.id)} onClick={() => setResolvedThreads((current) => [...current, threadMessage.id])}>{resolvedThreads.includes(threadMessage.id) ? <><Check /> Resolved</> : 'Mark as resolved'}</button></div></div></article>
         </> : <>
           <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
           <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
         </>}
-        <form className={`thread-composer ${activeTarget === 'threads' ? 'target-composer' : ''}`} onSubmit={sendThreadReply}><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder={`Reply to ${threadMessage.author}…`} autoFocus /><button disabled={!threadDraft.trim()}><Send size={17} /></button></form>
+        <form className={`thread-composer ${targetLesson === 'threads' && threadOpen ? 'target-composer' : ''}`} onSubmit={sendThreadReply}>
+          <div className="format-bar" role="toolbar" aria-label="Formatting">
+            <button type="button" aria-label="Bold"><strong>B</strong></button>
+            <button type="button" aria-label="Italic"><em>I</em></button>
+            <button type="button" aria-label="Underline"><span className="underline">U</span></button>
+            <button type="button" aria-label="Strikethrough"><span className="strike">S</span></button>
+            <i />
+            <button type="button" aria-label="Link">🔗</button>
+            <button type="button" aria-label="Ordered list">1≡</button>
+            <button type="button" aria-label="Bulleted list">•≡</button>
+            <i />
+            <button type="button" aria-label="Code">{'<>'}</button>
+            <button type="button" aria-label="Code block">▣</button>
+            <span />
+          </div>
+          <div className="compose-row"><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder={`Reply to ${threadMessage.author}…`} aria-label={`Reply to ${threadMessage.author}`} autoFocus /></div>
+          {!directMessage && <label className="also-send">
+            <input type="checkbox" checked={alsoSendToChannel} onChange={(event) => setAlsoSendToChannel(event.target.checked)} />
+            <span>Also send to #{channel}</span>
+          </label>}
+          <div className="composer-actions" role="toolbar" aria-label="Composer actions">
+            <div>
+              <button type="button" aria-label="Add attachment"><Plus /></button>
+              <button type="button" aria-label="Formatting"><strong>Aa</strong></button>
+              <button type="button" aria-label="Add emoji"><SmilePlus /></button>
+              <button type="button" aria-label="Mention someone"><AtSign /></button>
+              <button type="button" aria-label="More reply actions"><MoreHorizontal /></button>
+            </div>
+            <div className="send-actions">
+              <button className="send-button" disabled={!threadDraft.trim()} aria-label="Send reply"><Send size={17} /></button>
+              <button type="button" className="send-options" disabled={!threadDraft.trim()} aria-label="Schedule reply for later"><ChevronDown /></button>
+            </div>
+          </div>
+        </form>
       </aside>}
 
       {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -971,7 +1282,6 @@ function App() {
       </section></div>}
 
       {allComplete && <div className="modal-backdrop completion-backdrop"><section className="completion-modal">
-        <div className="completion-confetti" aria-hidden="true">{Array.from({ length: 14 }, (_, index) => <i key={index} />)}</div>
         <div className="completion-mark"><Check size={30} /></div>
         <p className="completion-step">Step {lessons.length + 1} of {lessons.length + 1} · Complete</p>
         <h1>Congrats!<br /><span>You’ve learned Slack.</span></h1>
@@ -980,6 +1290,7 @@ function App() {
         <small>Redirecting automatically…</small>
       </section></div>}
     </main>
+    </MotionConfig>
   )
 }
 

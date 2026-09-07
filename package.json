@@ -15,9 +15,12 @@
     "check": "npm run test && npm run build"
   },
   "dependencies": {
+    "@number-flow/react": "^0.6.2",
     "@plausible-analytics/tracker": "^0.4.6",
     "@vitejs/plugin-react": "4.4.1",
+    "canvas-confetti": "^1.9.4",
     "lucide-react": "latest",
+    "motion": "^13.2.0",
     "react": "latest",
     "react-dom": "latest",
     "vite": "6.4.3",
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "typescript": "5.9.3",
