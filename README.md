@@ -21,7 +21,7 @@
 <h1 align="center">Contributors</h1>
 
 <p align="center">
-  <em>thanks you for working on the platforum</em>
+  <em>Thank you for your contributions on this platform</em>
 </p>
 <p align="center">
   <a href="https://github.com/christianwell/onboarding-eng/graphs/contributors">
