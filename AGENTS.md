@@ -12,6 +12,13 @@
 - Match the reference's layout, spacing, colors, type scale, controls, and responsive behavior. Keep program data and simulated messages configurable.
 - Never copy private Slack messages, member names, avatars, tokens, or other user data from the saved page into this repository.
 
+## Orchard deployment
+
+- Orchard builds the root `Dockerfile`, serves the app on port 80, and checks `/health.html`.
+- Keep the Caddy document root at `/app/dist`; both the Dockerfile and Railpack fallback use that path.
+- The Orchard container sandbox rejects Caddy's `cap_net_bind_service` file capability. Keep `RUN setcap -r /usr/bin/caddy` in the runtime image or the pod will fail to start with `failed to update creds with file privileges: operation not permitted`.
+- After deployment changes, verify both `/health.html` and a client-side route such as `/program/stardance` return HTTP 200 before considering the rollout complete.
+
 ## Verification
 
 - Run `npm run check` after code changes.
