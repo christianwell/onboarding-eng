@@ -1,0 +1,10 @@
+.git
+.github
+.agents
+dist
+node_modules
+playwright-report
+test-results
+tests
+*.tsbuildinfo
+README.md
