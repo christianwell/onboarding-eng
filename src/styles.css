@@ -434,8 +434,8 @@ button { color: inherit; }
 
 .channel-list button, .dm-section button { padding: 0 6px 0 24px; }
 .channel-list button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.channel-list button.unread > span { color: var(--sidebar-fg-strong); font-weight: 900; }
-.channel-list button > i {
+.channel-list button.unread > span, .dm-section button.unread { color: var(--sidebar-fg-strong); font-weight: 900; }
+.channel-list button > i, .dm-section button > i.dm-unread-count {
   min-width: 24px;
   height: 18px;
   margin-left: auto;
@@ -655,6 +655,8 @@ button { color: inherit; }
 .message { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 8px; padding: 8px 20px; }
 .message:hover { background: var(--content-hover); }
 .avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-lg); color: #fff; font-size: 15px; font-weight: 900; }
+.avatar, .search-avatar { position: relative; }
+.avatar > img, .dm-dot > img, .search-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .message-content { min-width: 0; margin-top: -4px; }
 .message-meta { height: 22px; line-height: 22px; }
 .message-meta strong { color: var(--fg-strong); font-size: 15px; font-weight: 900; }
@@ -1199,7 +1201,7 @@ button { color: inherit; }
 .safety-quiz button strong { font-size: 10.5px; }
 .safety-quiz button small { color: #a1a1aa; font-size: 9px; margin-top: 1px; }
 .safety-quiz .quiz-feedback { margin: 8px 0 0; padding: 7px; border-radius: var(--radius-md); color: #ff9aaa; background: rgba(236, 55, 80, .12); font-size: 9.5px; font-weight: 500; }
-.safety-quiz > a { display: inline-block; margin-top: 10px; color: #c1b7ff; font-size: 9.5px; font-weight: 600; }
+.safety-quiz > a, .conduct-link { display: inline-block; margin-top: 10px; color: #c1b7ff; font-size: 9.5px; font-weight: 600; }
 /* While the ping lesson is active the composer carries z-index 50, which traps
    its mention menu in that stacking context. Step the card under it for as long
    as the menu is open so the list you are picking from stays visible. */

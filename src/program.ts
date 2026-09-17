@@ -89,6 +89,78 @@ export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   },
 }
 
+export interface SimulatedPerson {
+  name: string
+  username: string
+  color: string
+  avatar?: string
+}
+
+export const workspaceMembers: SimulatedPerson[] = [
+  { name: 'Nova', username: 'nova', color: '#3f88c5' },
+  { name: 'Christian', username: 'christian', color: '#ec3750' },
+  { name: 'Mika', username: 'mika', color: '#ef8354' },
+  { name: 'Jules', username: 'jules', color: '#2f9e72' },
+  { name: 'Priya', username: 'priya', color: '#9c6ade' },
+]
+
+export interface SafetyReportConfig {
+  spam: { from: SimulatedPerson & { app?: boolean }; message: string; time?: string }
+  moderator: SimulatedPerson & { greeting?: string; acknowledgement?: string }
+  steps: { notice: LessonCopy; find: LessonCopy; send: LessonCopy }
+}
+
+export const safetyReportSteps = ['notice', 'find', 'send'] as const
+
+export const defaultSafetyReport: SafetyReportConfig = {
+  spam: {
+    from: {
+      name: 'Sam Altman',
+      username: 'sam-altman',
+      color: '#8a8f98',
+      avatar: '/people/spammer.webp',
+    },
+    message: 'Hey, please consider investing in my AI company!',
+    time: '10:12 AM',
+  },
+  moderator: {
+    name: 'shroud',
+    username: 'shroud',
+    color: '#ec3750',
+    avatar: '/people/shroud.jpg',
+    acknowledgement: 'This report has been submitted. We\'ve received your report and should get back to you within a couple hours.',
+  },
+  steps: {
+    notice: {
+      eyebrow: 'Keep Hack Club kind',
+      title: 'Oh, looks like you got a DM!',
+      body: 'Hack Club holds everyone to a high standard. Don’t engage with harassment or share private information. The moderation team can help.',
+      task: 'Click on it!',
+      hint: 'Check your sidebar.',
+    },
+    find: {
+      eyebrow: 'Keep Hack Club kind',
+      title: 'Ads like this aren’t allowed on the Slack',
+      body: 'Let’s report it to the Fire Department, who are in charge of keeping the Slack a nice place.',
+      task: 'Go to the search bar and type @shroud.',
+      hint: 'Reports to @shroud go to Hack Club’s Fire Department moderation team.',
+    },
+    send: {
+      eyebrow: 'Keep Hack Club kind',
+      title: 'Tell us what happened',
+      body: 'Write who messaged you, what they said, and any other context you think is important. The more details you provide, the better!',
+      task: 'Send @shroud your report.',
+      hint: 'Try “someone just sent me an advert in my DMs”',
+    },
+  },
+}
+
+export function assetUrl(path: string) {
+  return path.startsWith('/') ? `${import.meta.env.BASE_URL}${path.slice(1)}` : path
+}
+
+export type SafetyReportPhase = (typeof safetyReportSteps)[number]
+
 export const internalLessonIds = ['pings', 'dms', 'threads', 'reactions'] as const satisfies readonly LessonId[]
 
 export function resolveLessons(configured: LessonId[]) {
@@ -152,6 +224,17 @@ export function getCompletionUrl(config: ProgramConfig, currentUrl: string) {
   }
 }
 
+const lessonCopyFields: (keyof LessonCopy)[] = ['eyebrow', 'title', 'body', 'task', 'hint']
+
+function isLessonCopy(value: unknown): value is LessonCopy {
+  const copy = value as LessonCopy | undefined
+  return Boolean(copy) && lessonCopyFields.every((field) => typeof copy![field] === 'string' && copy![field].trim())
+}
+
+function isFilledString(value: unknown) {
+  return typeof value === 'string' && Boolean(value.trim())
+}
+
 function isHttpUrl(value: string) {
   try {
     const url = new URL(value)
@@ -200,8 +283,7 @@ export function validateProgram(value: unknown): ProgramConfig {
   }
   if (config.copy?.lessons) {
     for (const [lesson, copy] of Object.entries(config.copy.lessons)) {
-      const fields: (keyof LessonCopy)[] = ['eyebrow', 'title', 'body', 'task', 'hint']
-      if (!lessonIds.includes(lesson as LessonId) || !copy || fields.some((field) => typeof copy[field] !== 'string' || !copy[field].trim())) {
+      if (!lessonIds.includes(lesson as LessonId) || !isLessonCopy(copy)) {
         throw new Error('Every lesson copy override needs eyebrow, title, body, task, and hint text')
       }
     }

@@ -115,7 +115,7 @@ function createConfig(draft: Draft): ProgramConfig {
       recommended: lines(draft.recommendedChannels),
       read_only: lines(draft.readOnlyChannels),
     },
-    copy: { lessons: draft.lessonCopy },
+    copy: { lessons: Object.fromEntries(Object.entries(draft.lessonCopy).filter(([lesson]) => lesson !== 'safety')) },
     ...(draft.supportEnabled ? { support: {
       channel: draft.supportChannel,
       discussion_channel: draft.discussionChannel,
@@ -312,7 +312,7 @@ function ProgramBuilder() {
         <section className="builder-panel" id="copy">
           <header><span>4</span><div><h2>Lesson copy</h2></div></header>
           <div className="builder-grid">
-            <label className="wide">Lesson<select value={copyLesson} onChange={(event) => setCopyLesson(event.target.value as LessonId)}>{Object.keys(defaultLessonCopy).map((lesson) => <option key={lesson} value={lesson}>{lesson}</option>)}</select></label>
+            <label className="wide">Lesson<select value={copyLesson} onChange={(event) => setCopyLesson(event.target.value as LessonId)}>{Object.keys(defaultLessonCopy).filter((lesson) => lesson !== 'safety').map((lesson) => <option key={lesson} value={lesson}>{lesson}</option>)}</select></label>
             <label>Eyebrow<input value={draft.lessonCopy[copyLesson].eyebrow} onChange={updateLessonCopy('eyebrow')} /></label>
             <label>Title<input value={draft.lessonCopy[copyLesson].title} onChange={updateLessonCopy('title')} /></label>
             <label className="wide">Body<textarea rows={4} value={draft.lessonCopy[copyLesson].body} onChange={updateLessonCopy('body')} /></label>
