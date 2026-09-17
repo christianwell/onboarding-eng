@@ -67,7 +67,7 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
     }, { once: true })
   })
   await expect(page.getByLabel('Step 9 of 10')).toBeVisible()
-  await page.getByRole('button', { name: 'Placeholder Sender', exact: true }).click()
+  await page.locator('.dm-section button.unread').first().click()
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('shroud')
   await page.getByRole('button', { name: /open dm with shroud/i }).click()
