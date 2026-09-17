@@ -434,8 +434,8 @@ button { color: inherit; }
 
 .channel-list button, .dm-section button { padding: 0 6px 0 24px; }
 .channel-list button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.channel-list button.unread > span { color: var(--sidebar-fg-strong); font-weight: 900; }
-.channel-list button > i {
+.channel-list button.unread > span, .dm-section button.unread { color: var(--sidebar-fg-strong); font-weight: 900; }
+.channel-list button > i, .dm-section button > i.dm-unread-count {
   min-width: 24px;
   height: 18px;
   margin-left: auto;
@@ -655,6 +655,8 @@ button { color: inherit; }
 .message { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 8px; padding: 8px 20px; }
 .message:hover { background: var(--content-hover); }
 .avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-lg); color: #fff; font-size: 15px; font-weight: 900; }
+.avatar, .search-avatar { position: relative; }
+.avatar > img, .dm-dot > img, .search-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .message-content { min-width: 0; margin-top: -4px; }
 .message-meta { height: 22px; line-height: 22px; }
 .message-meta strong { color: var(--fg-strong); font-size: 15px; font-weight: 900; }
@@ -981,6 +983,34 @@ button { color: inherit; }
 .support-ticket-row button:disabled { color: var(--fg-muted); border-color: var(--hairline-strong); background: var(--pill-bg); cursor: default; }
 .support-ticket-row button svg { width: 14px; height: 14px; }
 
+.reply-facepile span { position: relative; overflow: hidden; }
+.reply-facepile span > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.shroud-prompt .message-content > p { margin: 0; }
+.shroud-checkbox { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; cursor: pointer; }
+.shroud-checkbox input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--link); cursor: pointer; }
+.shroud-checkbox span { display: block; }
+.shroud-checkbox strong { display: block; color: var(--fg-strong); font-size: 15px; font-weight: 400; }
+.shroud-checkbox small { display: block; margin-top: 1px; color: var(--fg-muted); font-size: 13px; }
+.shroud-actions { display: flex; gap: 8px; margin-top: 12px; }
+.block-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.block-button.primary { background: var(--success); }
+.block-button.primary:hover { background: var(--success-hover); }
+.block-button.danger { background: #e01e5a; }
+.block-button.danger:hover { background: #c31a4e; }
+.ephemeral-label { margin-left: 8px; color: var(--fg-muted); font-size: 12px; font-weight: 400; }
+.ephemeral-message .message-content > p { color: var(--fg-muted); }
+
 /* --- Channel canvases ----------------------------------------------------- */
 
 .channel-canvas { min-height: 0; overflow-y: auto; padding: 28px clamp(22px, 5vw, 70px) 48px; background: var(--content-bg); }
@@ -1199,7 +1229,7 @@ button { color: inherit; }
 .safety-quiz button strong { font-size: 10.5px; }
 .safety-quiz button small { color: #a1a1aa; font-size: 9px; margin-top: 1px; }
 .safety-quiz .quiz-feedback { margin: 8px 0 0; padding: 7px; border-radius: var(--radius-md); color: #ff9aaa; background: rgba(236, 55, 80, .12); font-size: 9.5px; font-weight: 500; }
-.safety-quiz > a { display: inline-block; margin-top: 10px; color: #c1b7ff; font-size: 9.5px; font-weight: 600; }
+.safety-quiz > a, .conduct-link { display: inline-block; margin-top: 10px; color: #c1b7ff; font-size: 9.5px; font-weight: 600; }
 /* While the ping lesson is active the composer carries z-index 50, which traps
    its mention menu in that stacking context. Step the card under it for as long
    as the menu is open so the list you are picking from stays visible. */

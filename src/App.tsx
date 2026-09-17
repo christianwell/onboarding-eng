@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, SyntheticEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -41,7 +41,7 @@ import confetti from 'canvas-confetti'
 import NumberFlow from '@number-flow/react'
 import { AnimatePresence, arc, motion, MotionConfig } from 'motion/react'
 import { trackEvent, trackLessonCompleted } from './analytics'
-import { defaultLessonCopy, getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig } from './program'
+import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
 type Message = {
   id: number
@@ -54,6 +54,9 @@ type Message = {
   replies?: number
   bot?: boolean
   pinned?: boolean
+  avatarUrl?: string
+  checkmark?: boolean
+  ephemeral?: boolean
   reactionEmoji?: string
   extraReactions?: { emoji: string; count: number }[]
   attachment?: {
@@ -66,16 +69,8 @@ type Message = {
 
 type OverlayRect = { left: number; top: number; width: number; height: number }
 type ChannelView = 'messages' | 'guide' | 'discover' | 'whats-on' | 'support' | 'faq' | 'files' | 'pins'
-type WorkspaceMember = { name: string; username: string; color: string }
+type WorkspaceMember = SimulatedPerson
 type SearchSuggestion = { type: 'channel'; name: string } | { type: 'member'; member: WorkspaceMember }
-
-const workspaceMembers: WorkspaceMember[] = [
-  { name: 'Nova', username: 'nova', color: '#3f88c5' },
-  { name: 'Christian', username: 'christian', color: '#ec3750' },
-  { name: 'Mika', username: 'mika', color: '#ef8354' },
-  { name: 'Jules', username: 'jules', color: '#2f9e72' },
-  { name: 'Priya', username: 'priya', color: '#9c6ade' },
-]
 
 function fuzzyScore(value: string, query: string) {
   const candidate = value.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -197,7 +192,31 @@ function resolveProgramCopy(value: string, config: ProgramConfig) {
     .replaceAll('Stardance', config.program.name)
 }
 
-function makeDirectMessages(name = 'Christian'): Message[] {
+function makeDirectMessages(name = 'Christian', config: ProgramConfig | null = null): Message[] {
+  const report = config ? defaultSafetyReport : null
+  if (report && name === report.spam.from.name) {
+    return [{
+      id: 102,
+      author: name,
+      avatar: name[0],
+      color: report.spam.from.color,
+      avatarUrl: report.spam.from.avatar && assetUrl(report.spam.from.avatar),
+      time: report.spam.time ?? '10:12 AM',
+      body: report.spam.message,
+      bot: report.spam.from.app,
+    }]
+  }
+  if (report && name === report.moderator.name) {
+    return report.moderator.greeting ? [{
+      id: 103,
+      author: name,
+      avatar: name[0],
+      color: report.moderator.color,
+      avatarUrl: report.moderator.avatar && assetUrl(report.moderator.avatar),
+      time: '10:14 AM',
+      body: report.moderator.greeting,
+    }] : []
+  }
   return [{
     id: 101,
     author: name,
@@ -289,8 +308,15 @@ function renderMessageBody(body: string) {
   ))
 }
 
+function hideBrokenImage(event: SyntheticEvent<HTMLImageElement>) {
+  event.currentTarget.hidden = true
+}
+
 function Avatar({ message }: { message: Message }) {
-  return <div className="avatar" style={{ background: message.color }}>{message.avatar}</div>
+  return <div className="avatar" style={{ background: message.color }}>
+    {message.avatar}
+    {message.avatarUrl && <img src={message.avatarUrl} alt="" onError={hideBrokenImage} />}
+  </div>
 }
 
 // Slack fronts a thread summary with the repliers' avatars.
@@ -314,8 +340,13 @@ function App() {
   const [joinedChannels, setJoinedChannels] = useState<string[]>([])
   const [channelView, setChannelView] = useState<ChannelView>('messages')
   const [messages, setMessages] = useState<Message[]>([])
-  const [directMessages, setDirectMessages] = useState<Message[]>(makeDirectMessages)
+  const [directMessages, setDirectMessages] = useState<Message[]>(() => makeDirectMessages('Christian', null))
   const [directMessage, setDirectMessage] = useState<string | null>(null)
+  const [spamDelivered, setSpamDelivered] = useState(false)
+  const [spamRead, setSpamRead] = useState(false)
+  const [reportMessageId, setReportMessageId] = useState<number | null>(null)
+  const [reportStatus, setReportStatus] = useState<'none' | 'pending' | 'submitted' | 'cancelled'>('none')
+  const [reportWithUsername, setReportWithUsername] = useState(false)
   const [draft, setDraft] = useState('')
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
@@ -333,7 +364,6 @@ function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notificationMode, setNotificationMode] = useState('All new messages')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [safetyWrong, setSafetyWrong] = useState(false)
   const [finished, setFinished] = useState(false)
   const [spotlight, setSpotlight] = useState<OverlayRect | null>(null)
   const [spotlightInPanel, setSpotlightInPanel] = useState(false)
@@ -401,18 +431,25 @@ function App() {
     () => [...new Set([...joinedChannels, ...recommendedChannels])],
     [joinedChannels, recommendedChannels],
   )
+  const report = config ? defaultSafetyReport : null
+  const spamSender = report?.spam.from.name ?? null
+  const moderatorName = report?.moderator.name ?? null
+  const searchMembers = useMemo<SimulatedPerson[]>(
+    () => report ? [...workspaceMembers, { name: report.moderator.name, username: report.moderator.username, color: report.moderator.color, avatar: report.moderator.avatar && assetUrl(report.moderator.avatar) }] : workspaceMembers,
+    [report],
+  )
   const mentionMatches = useMemo(
-    () => rankMatches(workspaceMembers, (member) => `${member.name} ${member.username}`, mentionQuery, 6),
-    [mentionQuery],
+    () => rankMatches(searchMembers, (member) => `${member.name} ${member.username}`, mentionQuery, 6),
+    [mentionQuery, searchMembers],
   )
   const searchSuggestions = useMemo<SearchSuggestion[]>(() => {
     if (!searchQuery.trim()) return []
     const channels = rankMatches(searchableChannels, (name) => name, searchQuery, 5)
       .map((name): SearchSuggestion => ({ type: 'channel', name }))
-    const members = rankMatches(workspaceMembers, (member) => `${member.name} ${member.username}`, searchQuery, 4)
+    const members = rankMatches(searchMembers, (member) => `${member.name} ${member.username}`, searchQuery, 4)
       .map((member): SearchSuggestion => ({ type: 'member', member }))
     return [...channels, ...members]
-  }, [searchQuery, searchableChannels])
+  }, [searchQuery, searchableChannels, searchMembers])
   const parsedSearch = useMemo(() => {
     const match = searchQuery.match(/(?:^|\s)in:#?([a-z0-9-]+)/i)
     return {
@@ -434,11 +471,17 @@ function App() {
         : []
     }).slice(0, 12)
   }, [config, parsedSearch, searchableChannels, searched])
-  const christianInResults = searchSuggestions.some((suggestion) => suggestion.type === 'member' && suggestion.member.name === 'Christian')
   const visibleMessages = directMessage ? directMessages : messages
   const activeLesson = lessons[lessonIndex]
+  const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
+  const reportPhase: SafetyReportPhase | null = !report || activeLesson !== 'safety' ? null
+    : spamRead && directMessage === moderatorName ? reportStatus === 'pending' || reportStatus === 'submitted' ? 'submit' : 'send'
+    : spamRead ? 'find'
+    : 'notice'
+  const searchSpotlightMember = activeLesson === 'dms' ? 'Christian' : reportPhase === 'find' ? moderatorName : null
+  const spotlightMemberInResults = searchSuggestions.some((suggestion) => suggestion.type === 'member' && suggestion.member.name === searchSpotlightMember)
   const configuredLessonCopy = activeLesson
-    ? config?.copy?.lessons?.[activeLesson] ?? defaultLessonCopy[activeLesson]
+    ? reportPhase ? report!.steps[reportPhase] : config?.copy?.lessons?.[activeLesson] ?? defaultLessonCopy[activeLesson]
     : null
   const activeCopy = activeLesson && configuredLessonCopy ? {
     eyebrow: resolveProgramCopy(configuredLessonCopy.eyebrow, config!),
@@ -451,7 +494,6 @@ function App() {
       ? 'Use the message box below, then press Enter or the send button.'
       : resolveProgramCopy(configuredLessonCopy.hint, config!),
   } : null
-  const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
   // Nothing is a spotlight target until the reader has started the tour.
   const targetLesson = introComplete && !isActiveComplete ? activeLesson : null
   const allLessonsComplete = config ? completed.length === lessons.length : false
@@ -465,6 +507,12 @@ function App() {
   useEffect(() => {
     if (guidePosition) lastGuidePosition.current = guidePosition
   }, [guidePosition])
+
+  useEffect(() => {
+    if (!report || !introComplete || activeLesson !== 'safety') return
+    if (completed.includes('safety')) return
+    setSpamDelivered(true)
+  }, [activeLesson, completed, introComplete, report])
 
   // The anchor starts at 0,0 because the first position is only known after a
   // measuring pass. Snapping to that first placement keeps the card from
@@ -514,6 +562,7 @@ function App() {
 
     const positionGuide = () => {
       const isMobile = window.innerWidth <= 620
+      const memberSearchSelector = () => spotlightMemberInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : '.search-trigger'
       const selector = !introComplete
         ? null
         : isMobile && activeLesson === 'channels'
@@ -522,8 +571,13 @@ function App() {
         ? '.notification-menu'
         : activeLesson === 'threads' && threadOpen
         ? '.thread-composer'
+        : reportPhase
+          ? reportPhase === 'send' ? '.target-composer'
+          : reportPhase === 'submit' ? '.target-action'
+          : reportPhase === 'find' ? memberSearchSelector()
+          : isMobile && !sidebarOpen ? '.mobile-menu' : '.spam-dm'
         : activeLesson === 'dms'
-          ? directMessage === 'Christian' ? '.target-composer' : christianInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : '.search-trigger'
+          ? directMessage === 'Christian' ? '.target-composer' : memberSearchSelector()
         : activeLesson === 'channels'
           ? '.target-sidebar'
           : activeLesson === 'messages' || activeLesson === 'pings'
@@ -537,9 +591,15 @@ function App() {
       const guide = document.querySelector<HTMLElement>('.coach')
       if (!guide) return
 
+      if (target && reportPhase === 'notice') {
+        const rect = target.getBoundingClientRect()
+        if (rect.bottom > window.innerHeight - 12 || rect.top < 12) target.scrollIntoView({ block: 'center' })
+      }
+
       const guideWidth = guide.offsetWidth
       const guideHeight = guide.offsetHeight
       const insideSearchPanel = Boolean(target?.closest('.search-modal'))
+      const insideThreadPanel = Boolean(target?.closest('.thread-panel'))
       const isSearchField = Boolean(target?.matches('.search-modal input'))
       // No ring for a target hidden behind the panel, nor for the panel's own
       // field — that already has focus and a caret.
@@ -550,7 +610,7 @@ function App() {
       if (isMobile) {
         if (target && !isActiveComplete && !skipRing) {
           const rect = target.getBoundingClientRect()
-          setSpotlight(ringInPanel
+          setSpotlight(ringInPanel || insideThreadPanel
             ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
             : { left: Math.max(2, rect.left - 6), top: Math.max(2, rect.top - 6), width: rect.width + 12, height: rect.height + 12 })
         } else {
@@ -558,7 +618,7 @@ function App() {
         }
         const top = !introComplete
           ? Math.max(50, (window.innerHeight - guideHeight) / 2)
-          : activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' && directMessage === 'Christian'
+          : activeLesson === 'messages' || activeLesson === 'pings' || reportPhase === 'send' || activeLesson === 'dms' && directMessage === 'Christian'
             ? 54
             : Math.max(50, window.innerHeight - guideHeight - 8)
         setGuidePosition({ left: 8, top })
@@ -568,10 +628,12 @@ function App() {
       // card parks bottom-left in every state — including once the lesson has
       // auto-completed, which otherwise centres it straight onto the results.
       const bottomLeft = { left: 12, top: Math.max(60, window.innerHeight - guideHeight - 12) }
+      const bottomRight = { left: Math.max(12, window.innerWidth - guideWidth - 12), top: bottomLeft.top }
+      const readingDirectMessage = Boolean(reportPhase && directMessage && !searchOpen)
 
       if (!target || isActiveComplete) {
         setSpotlight(null)
-        setGuidePosition(searchOpen ? bottomLeft : {
+        setGuidePosition(readingDirectMessage ? bottomRight : searchOpen ? bottomLeft : {
           left: Math.max(12, (window.innerWidth - guideWidth) / 2),
           top: Math.max(12, (window.innerHeight - guideHeight) / 2),
         })
@@ -579,19 +641,23 @@ function App() {
       }
 
       const rect = target.getBoundingClientRect()
-      setSpotlight(skipRing ? null : ringInPanel
+      setSpotlight(skipRing ? null : ringInPanel || insideThreadPanel
         ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
         : { left: rect.left - 8, top: rect.top - 8, width: rect.width + 16, height: rect.height + 16 })
 
       // The search panel is anchored to the top of the window, so the card drops
       // to the bottom-left to stay clear of it — overlapping it both hides the
       // results and swallows clicks meant for them.
-      if (searchOpen || (activeLesson === 'dms' && directMessage !== 'Christian')) {
-        setGuidePosition(bottomLeft)
+      if (reportPhase === 'submit') {
+        setGuidePosition(threadOpen ? bottomLeft : bottomRight)
+        return
+      }
+      if (searchOpen || (activeLesson === 'dms' && directMessage !== 'Christian') || reportPhase === 'find') {
+        setGuidePosition(readingDirectMessage ? bottomRight : bottomLeft)
         return
       }
 
-      if (activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms') {
+      if (activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' || reportPhase === 'send') {
         setGuidePosition({
           left: Math.min(
             Math.max(12, rect.left + rect.width / 2 - guideWidth / 2),
@@ -630,7 +696,7 @@ function App() {
       window.removeEventListener('resize', positionGuide)
       observer?.disconnect()
     }
-  }, [activeLesson, allComplete, christianInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, searchOpen, searchQuery, sidebarOpen, threadOpen])
+  }, [activeLesson, allComplete, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
 
   // Cmd/Ctrl+Shift+R restarts the tour instead of resuming it. Clearing the
   // saved progress before reloading means either path — our reload or the
@@ -710,9 +776,10 @@ function App() {
 
   const selectDirectMessage = (name: string) => {
     setDirectMessage(name)
-    setDirectMessages(makeDirectMessages(name))
+    setDirectMessages(makeDirectMessages(name, config))
     setSidebarOpen(false)
     setDraft('')
+    if (name === spamSender) setSpamRead(true)
     window.setTimeout(() => composerRef.current?.focus(), 100)
   }
 
@@ -805,7 +872,44 @@ function App() {
     if (activeLesson === 'messages') completeLesson('messages')
     if (activeLesson === 'pings' && selectedMention === 'Nova' && body.includes('@Nova')) completeLesson('pings')
     if (activeLesson === 'dms' && directMessage === 'Christian') completeLesson('dms')
+    if (activeLesson === 'safety' && report && directMessage === moderatorName && reportStatus !== 'pending') {
+      setReportMessageId(message.id)
+      setReportWithUsername(false)
+      setReportStatus('none')
+      window.setTimeout(() => {
+        setReportStatus('pending')
+        setDirectMessages((current) => current.map((entry) => entry.id === message.id ? { ...entry, replies: 1 } : entry))
+      }, 600)
+    }
     setSelectedMention(null)
+  }
+
+  const shroudMessage = (body: string): Message => ({
+    id: Date.now(),
+    author: report!.moderator.name,
+    avatar: report!.moderator.name[0],
+    color: report!.moderator.color,
+    avatarUrl: report!.moderator.avatar && assetUrl(report!.moderator.avatar),
+    time: 'now',
+    body,
+    bot: true,
+    ephemeral: true,
+  })
+
+  const submitReport = () => {
+    if (!report || reportMessageId === null) return
+    setReportStatus('submitted')
+    setDirectMessages((current) => [
+      ...current.map((entry) => entry.id === reportMessageId ? { ...entry, checkmark: true } : entry),
+      shroudMessage(report.moderator.prompt.forwarded),
+    ])
+    completeLesson('safety')
+  }
+
+  const cancelReport = () => {
+    if (!report || reportMessageId === null) return
+    setReportStatus('cancelled')
+    setDirectMessages((current) => [...current, shroudMessage(report.moderator.prompt.cancelledConfirmation)])
   }
 
   const sendThreadReply = (event: FormEvent) => {
@@ -894,7 +998,6 @@ function App() {
       setChannelView('messages')
     }
     setLessonIndex((value) => value + 1)
-    setSafetyWrong(false)
     setSearchOpen(false)
     setSearched(false)
     setSearchQuery('')
@@ -1005,6 +1108,11 @@ function App() {
         </div>
         <div className="sidebar-section dm-section">
           <p><ChevronDown size={14} /> Direct messages</p>
+          {report && spamDelivered && <button
+            aria-label={spamSender!}
+            className={`${directMessage === spamSender ? 'selected' : ''} ${spamRead ? '' : 'unread'} ${targetLesson === 'safety' && reportPhase === 'notice' ? 'spam-dm' : ''}`}
+            onClick={() => selectDirectMessage(spamSender!)}
+          ><span className="dm-dot" style={{ background: report.spam.from.color }}>{spamSender![0]}{report.spam.from.avatar && <img src={assetUrl(report.spam.from.avatar)} alt="" onError={hideBrokenImage} />}<i /></span> {spamSender}{!spamRead && <i className="dm-unread-count">1</i>}</button>}
           <button aria-label="Nova" className={directMessage === 'Nova' ? 'selected' : ''} onClick={() => selectDirectMessage('Nova')}><span className="dm-dot avatar-nova">N<i /></span> Nova</button>
           <button aria-label="Mika" className={directMessage === 'Mika' ? 'selected' : ''} onClick={() => selectDirectMessage('Mika')}><span className="dm-dot avatar-mika">M<i /></span> Mika</button>
           <button><Plus size={16} /> Add teammates</button>
@@ -1089,20 +1197,30 @@ function App() {
           {(!introComplete || directMessage) && <div className="channel-intro"><div>{directMessage ? <UserRound /> : <Hash />}</div><h1>{directMessage ? directMessage : `Welcome to #${channel}!`}</h1><p>{channelPurpose}</p></div>}
           {introComplete && !directMessage && <div className="history-status"><span>Today <ChevronDown /></span><p>Loading history…</p></div>}
           {visibleMessages.map((message) => (
-            <article className="message" key={message.id}>
+            <article className={`message ${message.ephemeral ? 'ephemeral-message' : ''}`} key={message.id}>
               <Avatar message={message} />
               <div className="message-content">
-                <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time></div>
+                <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time>{message.ephemeral && <span className="ephemeral-label">Only visible to you</span>}</div>
                 <p>{renderMessageBody(message.body)}</p>
                 {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
                 {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
                 {!directMessage && message.id === 2 && <div className="message-tools">
-                  <button aria-label={`${message.reactionEmoji ?? '⭐'} ${message.reactions}`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
+                  <button className={targetLesson === 'reactions' ? 'target-action' : ''} aria-label={`Add a ${message.reactionEmoji ?? '⭐'} reaction`} onClick={() => { addReaction(message.id); completeLesson('reactions') }}><span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
                   {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
-                  <button className={`reaction-add ${targetLesson === 'reactions' ? 'target-action' : ''}`} aria-label={`Add a ${message.reactionEmoji ?? '⭐'} reaction`} onClick={() => { addReaction(message.id); completeLesson('reactions') }}><SmilePlus /></button>
+                  <button className="reaction-add" aria-label="Add a reaction" onClick={() => addReaction(message.id)}><SmilePlus /></button>
                   <button className={`reply-bar ${targetLesson === 'threads' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
                     <ReplyFacepile /><strong>{message.replies} replies</strong><span>View thread</span>
                   </button>
+                </div>}
+                {directMessage && (message.checkmark || message.replies) && <div className="message-tools reaction-row">
+                  {message.checkmark && <button className="reacted" aria-label="white_check_mark, 1 reaction"><span>✅</span> 1</button>}
+                  {message.checkmark && <button className="reaction-add" aria-label="Add a reaction"><SmilePlus /></button>}
+                  {message.replies && <button className={`reply-bar ${reportPhase === 'submit' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    <span className="reply-facepile" aria-hidden="true"><span style={{ background: report?.moderator.color }}>{report?.moderator.avatar
+                      ? <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />
+                      : report?.moderator.name[0]}</span></span>
+                    <strong>{message.replies} {message.replies === 1 ? 'reply' : 'replies'}</strong><span>View thread</span>
+                  </button>}
                 </div>}
                 {!directMessage && message.id !== 2 && (message.reactions || message.replies) && <div className="message-tools reaction-row">
                   {message.reactions && <button aria-label={`${message.reactionEmoji ?? '✨'} ${message.reactions}`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
@@ -1118,7 +1236,7 @@ function App() {
           ))}
         </div>}
 
-        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+        {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || reportPhase === 'send' || targetLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
           <div className="format-bar" role="toolbar" aria-label="Formatting">
             <button type="button" aria-label="Bold"><strong>B</strong></button>
             <button type="button" aria-label="Italic"><em>I</em></button>
@@ -1192,14 +1310,9 @@ function App() {
           <p className="lesson-eyebrow">{activeCopy!.eyebrow}</p>
           <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
           <p className="lesson-body">{activeCopy!.body}</p>
-          {activeLesson === 'safety' && !isActiveComplete ? <div className="safety-quiz">
-            <p><strong>Final safety check:</strong> A stranger sends an uncomfortable DM and asks for your address. What should you do?</p>
-            <button onClick={() => { setSafetyWrong(false); completeLesson('safety') }}><ShieldCheck size={17} /><span><strong>Report it to @shroud and finish</strong><small>Stop replying and send context to the moderation team</small></span></button>
-            <button onClick={() => setSafetyWrong(true)}><MessageCircle size={17} /><span><strong>Handle it by yourself</strong><small>Keep chatting until they stop</small></span></button>
-            {safetyWrong && <p className="quiz-feedback">Not quite. You never have to handle this alone—stop engaging and report it.</p>}
-            <a href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>
-          </div> : !isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
+          {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
           {!isActiveComplete && <details><summary>Need a hint?</summary><p>{activeCopy!.hint}</p></details>}
+          {reportPhase && !isActiveComplete && <a className="conduct-link" href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>}
           {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong>{allLessonsComplete && <span>Everything’s complete. Finish when you’re ready.</span>}</div></div>}
         </div>}
         <div className="guide-actions">
@@ -1214,10 +1327,30 @@ function App() {
       </>}
 
       {threadOpen && threadMessage && <aside className="thread-panel">
-        <header><div><strong>Thread</strong><span>#{channel}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
+        <header><div><strong>Thread</strong><span>{directMessage ?? `#${channel}`}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
         <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p></div></article>
         <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
-        {config.support && channel === config.support.channel ? <>
+        {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
+          <article className={`message compact shroud-prompt ${reportPhase === 'submit' ? 'target-action' : ''}`}>
+            <div className="avatar small-avatar" style={{ background: report.moderator.color }}>{report.moderator.name[0]}{report.moderator.avatar && <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />}</div>
+            <div className="message-content">
+              <div className="message-meta"><strong>{report.moderator.name}</strong><span className="bot-label">APP</span><time>now</time></div>
+              {reportStatus === 'pending' ? <>
+                <p>{report.moderator.prompt.intro}</p>
+                <label className="shroud-checkbox">
+                  <input type="checkbox" checked={reportWithUsername} onChange={(event) => setReportWithUsername(event.target.checked)} />
+                  <span><strong>{report.moderator.prompt.anonymousOption}</strong><small>{report.moderator.prompt.anonymousOptionHint}</small></span>
+                </label>
+                <div className="shroud-actions">
+                  <button type="button" className="block-button primary" onClick={submitReport}>{report.moderator.prompt.submit}</button>
+                  <button type="button" className="block-button danger" onClick={cancelReport}>{report.moderator.prompt.cancel}</button>
+                </div>
+              </> : <p>{reportStatus === 'cancelled'
+                ? report.moderator.prompt.cancelled
+                : reportWithUsername ? report.moderator.prompt.submitted : report.moderator.prompt.submittedAnonymously}</p>}
+            </div>
+          </article>
+        </> : config.support && channel === config.support.channel ? <>
           <article className="message compact support-bot-reply"><div className="avatar support-bot-avatar">{config.support.bot_name[0]}</div><div className="message-content"><div className="message-meta"><strong>{config.support.bot_name}</strong><span className="bot-label">APP</span><time>just now</time></div><p>{config.support.acknowledgement.replaceAll('{{author}}', threadMessage.author).replaceAll('{{program}}', config.program.name)}</p><button className="thread-faq-link" onClick={() => { setThreadOpen(false); setChannelView('faq') }}><FileText /> {config.support.faq_title}</button><div className="support-ticket-row"><button disabled={resolvedThreads.includes(threadMessage.id)} onClick={() => setResolvedThreads((current) => [...current, threadMessage.id])}>{resolvedThreads.includes(threadMessage.id) ? <><Check /> Resolved</> : 'Mark as resolved'}</button></div></div></article>
         </> : <>
           <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
@@ -1265,10 +1398,10 @@ function App() {
           {searchSuggestions.some((suggestion) => suggestion.type === 'channel') && <p>Channels</p>}
           {searchSuggestions.map((suggestion, index) => suggestion.type === 'channel' ? <button key={`channel-${suggestion.name}`} type="button" className={index === searchActiveIndex ? 'active' : ''} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="suggestion-icon"><Hash /></span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.name}</strong><small>Channel</small></span><ChevronRight /></button> : null)}
           {searchSuggestions.some((suggestion) => suggestion.type === 'member') && <p>People</p>}
-          {searchSuggestions.map((suggestion, index) => suggestion.type === 'member' ? <button key={`member-${suggestion.member.username}`} type="button" className={`${index === searchActiveIndex ? 'active ' : ''}${suggestion.member.name === 'Christian' ? 'dm-search-result' : ''}`} aria-label={`Open DM with ${suggestion.member.name}`} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="search-avatar" style={{ background: suggestion.member.color }}>{suggestion.member.name[0]}</span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.member.name}</strong><small>@{suggestion.member.username} · Direct message</small></span><ChevronRight /></button> : null)}
+          {searchSuggestions.map((suggestion, index) => suggestion.type === 'member' ? <button key={`member-${suggestion.member.username}`} type="button" className={`${index === searchActiveIndex ? 'active ' : ''}${suggestion.member.name === searchSpotlightMember ? 'dm-search-result' : ''}`} aria-label={`Open DM with ${suggestion.member.name}`} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="search-avatar" style={{ background: suggestion.member.color }}>{suggestion.member.name[0]}{suggestion.member.avatar && <img src={suggestion.member.avatar} alt="" onError={hideBrokenImage} />}</span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.member.name}</strong><small>@{suggestion.member.username} · Direct message</small></span><ChevronRight /></button> : null)}
           <button type="submit" className="search-all" onClick={() => { setSearched(true); setSearchActiveIndex(-1); completeSearchIfMatched() }}><span className="suggestion-icon"><Search /></span><span><strong>Search for “{searchQuery}”</strong><small>Messages, files, and more</small></span><kbd>Enter</kbd></button>
-        </div> : !searched ? activeLesson === 'dms'
-          ? <div className="search-empty"><UserRound /><h3>Find Christian</h3><p>Type <button onClick={() => setSearchQuery('Christian')}>Christian</button> to find their Hack Club account.</p></div>
+        </div> : !searched ? searchSpotlightMember
+          ? <div className="search-empty"><UserRound /><h3>Find {searchSpotlightMember}</h3><p>Type <button onClick={() => setSearchQuery(searchSpotlightMember)}>{searchSpotlightMember}</button> to find their Hack Club account.</p></div>
           : <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><div><kbd>Enter</kbd> to search</div></div>
         : <div className="search-results message-search-results">
             <div className="search-results-header"><div><strong>{searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}</strong><span> for “{searchQuery}”</span></div><button type="button">Most relevant <ChevronDown /></button></div>
