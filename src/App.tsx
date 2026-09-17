@@ -55,6 +55,8 @@ type Message = {
   bot?: boolean
   pinned?: boolean
   avatarUrl?: string
+  checkmark?: boolean
+  ephemeral?: boolean
   reactionEmoji?: string
   extraReactions?: { emoji: string; count: number }[]
   attachment?: {
@@ -342,6 +344,9 @@ function App() {
   const [directMessage, setDirectMessage] = useState<string | null>(null)
   const [spamDelivered, setSpamDelivered] = useState(false)
   const [spamRead, setSpamRead] = useState(false)
+  const [reportMessageId, setReportMessageId] = useState<number | null>(null)
+  const [reportStatus, setReportStatus] = useState<'none' | 'pending' | 'submitted' | 'cancelled'>('none')
+  const [reportWithUsername, setReportWithUsername] = useState(false)
   const [draft, setDraft] = useState('')
   const [mentionMenuOpen, setMentionMenuOpen] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
@@ -470,7 +475,7 @@ function App() {
   const activeLesson = lessons[lessonIndex]
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
   const reportPhase: SafetyReportPhase | null = !report || activeLesson !== 'safety' ? null
-    : spamRead && directMessage === moderatorName ? 'send'
+    : spamRead && directMessage === moderatorName ? reportStatus === 'pending' || reportStatus === 'submitted' ? 'submit' : 'send'
     : spamRead ? 'find'
     : 'notice'
   const searchSpotlightMember = activeLesson === 'dms' ? 'Christian' : reportPhase === 'find' ? moderatorName : null
@@ -568,6 +573,7 @@ function App() {
         ? '.thread-composer'
         : reportPhase
           ? reportPhase === 'send' ? '.target-composer'
+          : reportPhase === 'submit' ? '.target-action'
           : reportPhase === 'find' ? memberSearchSelector()
           : isMobile && !sidebarOpen ? '.mobile-menu' : '.spam-dm'
         : activeLesson === 'dms'
@@ -593,6 +599,7 @@ function App() {
       const guideWidth = guide.offsetWidth
       const guideHeight = guide.offsetHeight
       const insideSearchPanel = Boolean(target?.closest('.search-modal'))
+      const insideThreadPanel = Boolean(target?.closest('.thread-panel'))
       const isSearchField = Boolean(target?.matches('.search-modal input'))
       // No ring for a target hidden behind the panel, nor for the panel's own
       // field — that already has focus and a caret.
@@ -603,7 +610,7 @@ function App() {
       if (isMobile) {
         if (target && !isActiveComplete && !skipRing) {
           const rect = target.getBoundingClientRect()
-          setSpotlight(ringInPanel
+          setSpotlight(ringInPanel || insideThreadPanel
             ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
             : { left: Math.max(2, rect.left - 6), top: Math.max(2, rect.top - 6), width: rect.width + 12, height: rect.height + 12 })
         } else {
@@ -634,13 +641,17 @@ function App() {
       }
 
       const rect = target.getBoundingClientRect()
-      setSpotlight(skipRing ? null : ringInPanel
+      setSpotlight(skipRing ? null : ringInPanel || insideThreadPanel
         ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
         : { left: rect.left - 8, top: rect.top - 8, width: rect.width + 16, height: rect.height + 16 })
 
       // The search panel is anchored to the top of the window, so the card drops
       // to the bottom-left to stay clear of it — overlapping it both hides the
       // results and swallows clicks meant for them.
+      if (reportPhase === 'submit') {
+        setGuidePosition(threadOpen ? bottomLeft : bottomRight)
+        return
+      }
       if (searchOpen || (activeLesson === 'dms' && directMessage !== 'Christian') || reportPhase === 'find') {
         setGuidePosition(readingDirectMessage ? bottomRight : bottomLeft)
         return
@@ -861,22 +872,44 @@ function App() {
     if (activeLesson === 'messages') completeLesson('messages')
     if (activeLesson === 'pings' && selectedMention === 'Nova' && body.includes('@Nova')) completeLesson('pings')
     if (activeLesson === 'dms' && directMessage === 'Christian') completeLesson('dms')
-    if (activeLesson === 'safety' && report && directMessage === moderatorName) {
-      completeLesson('safety')
-      const acknowledgement = report.moderator.acknowledgement
-      if (acknowledgement) {
-        window.setTimeout(() => setDirectMessages((current) => [...current, {
-          id: Date.now() + 1,
-          author: report.moderator.name,
-          avatar: report.moderator.name[0],
-          color: report.moderator.color,
-          avatarUrl: report.moderator.avatar && assetUrl(report.moderator.avatar),
-          time: 'now',
-          body: acknowledgement,
-        }]), 600)
-      }
+    if (activeLesson === 'safety' && report && directMessage === moderatorName && reportStatus !== 'pending') {
+      setReportMessageId(message.id)
+      setReportWithUsername(false)
+      setReportStatus('none')
+      window.setTimeout(() => {
+        setReportStatus('pending')
+        setDirectMessages((current) => current.map((entry) => entry.id === message.id ? { ...entry, replies: 1 } : entry))
+      }, 600)
     }
     setSelectedMention(null)
+  }
+
+  const shroudMessage = (body: string): Message => ({
+    id: Date.now(),
+    author: report!.moderator.name,
+    avatar: report!.moderator.name[0],
+    color: report!.moderator.color,
+    avatarUrl: report!.moderator.avatar && assetUrl(report!.moderator.avatar),
+    time: 'now',
+    body,
+    bot: true,
+    ephemeral: true,
+  })
+
+  const submitReport = () => {
+    if (!report || reportMessageId === null) return
+    setReportStatus('submitted')
+    setDirectMessages((current) => [
+      ...current.map((entry) => entry.id === reportMessageId ? { ...entry, checkmark: true } : entry),
+      shroudMessage(report.moderator.prompt.forwarded),
+    ])
+    completeLesson('safety')
+  }
+
+  const cancelReport = () => {
+    if (!report || reportMessageId === null) return
+    setReportStatus('cancelled')
+    setDirectMessages((current) => [...current, shroudMessage(report.moderator.prompt.cancelledConfirmation)])
   }
 
   const sendThreadReply = (event: FormEvent) => {
@@ -1164,10 +1197,10 @@ function App() {
           {(!introComplete || directMessage) && <div className="channel-intro"><div>{directMessage ? <UserRound /> : <Hash />}</div><h1>{directMessage ? directMessage : `Welcome to #${channel}!`}</h1><p>{channelPurpose}</p></div>}
           {introComplete && !directMessage && <div className="history-status"><span>Today <ChevronDown /></span><p>Loading history…</p></div>}
           {visibleMessages.map((message) => (
-            <article className="message" key={message.id}>
+            <article className={`message ${message.ephemeral ? 'ephemeral-message' : ''}`} key={message.id}>
               <Avatar message={message} />
               <div className="message-content">
-                <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time></div>
+                <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time>{message.ephemeral && <span className="ephemeral-label">Only visible to you</span>}</div>
                 <p>{renderMessageBody(message.body)}</p>
                 {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
                 {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
@@ -1178,6 +1211,16 @@ function App() {
                   <button className={`reply-bar ${targetLesson === 'threads' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
                     <ReplyFacepile /><strong>{message.replies} replies</strong><span>View thread</span>
                   </button>
+                </div>}
+                {directMessage && (message.checkmark || message.replies) && <div className="message-tools reaction-row">
+                  {message.checkmark && <button className="reacted" aria-label="white_check_mark, 1 reaction"><span>✅</span> 1</button>}
+                  {message.checkmark && <button className="reaction-add" aria-label="Add a reaction"><SmilePlus /></button>}
+                  {message.replies && <button className={`reply-bar ${reportPhase === 'submit' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    <span className="reply-facepile" aria-hidden="true"><span style={{ background: report?.moderator.color }}>{report?.moderator.avatar
+                      ? <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />
+                      : report?.moderator.name[0]}</span></span>
+                    <strong>{message.replies} {message.replies === 1 ? 'reply' : 'replies'}</strong><span>View thread</span>
+                  </button>}
                 </div>}
                 {!directMessage && message.id !== 2 && (message.reactions || message.replies) && <div className="message-tools reaction-row">
                   {message.reactions && <button aria-label={`${message.reactionEmoji ?? '✨'} ${message.reactions}`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
@@ -1284,10 +1327,30 @@ function App() {
       </>}
 
       {threadOpen && threadMessage && <aside className="thread-panel">
-        <header><div><strong>Thread</strong><span>#{channel}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
+        <header><div><strong>Thread</strong><span>{directMessage ?? `#${channel}`}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
         <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p></div></article>
         <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
-        {config.support && channel === config.support.channel ? <>
+        {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
+          <article className={`message compact shroud-prompt ${reportPhase === 'submit' ? 'target-action' : ''}`}>
+            <div className="avatar small-avatar" style={{ background: report.moderator.color }}>{report.moderator.name[0]}{report.moderator.avatar && <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />}</div>
+            <div className="message-content">
+              <div className="message-meta"><strong>{report.moderator.name}</strong><span className="bot-label">APP</span><time>now</time></div>
+              {reportStatus === 'pending' ? <>
+                <p>{report.moderator.prompt.intro}</p>
+                <label className="shroud-checkbox">
+                  <input type="checkbox" checked={reportWithUsername} onChange={(event) => setReportWithUsername(event.target.checked)} />
+                  <span><strong>{report.moderator.prompt.anonymousOption}</strong><small>{report.moderator.prompt.anonymousOptionHint}</small></span>
+                </label>
+                <div className="shroud-actions">
+                  <button type="button" className="block-button primary" onClick={submitReport}>{report.moderator.prompt.submit}</button>
+                  <button type="button" className="block-button danger" onClick={cancelReport}>{report.moderator.prompt.cancel}</button>
+                </div>
+              </> : <p>{reportStatus === 'cancelled'
+                ? report.moderator.prompt.cancelled
+                : reportWithUsername ? report.moderator.prompt.submitted : report.moderator.prompt.submittedAnonymously}</p>}
+            </div>
+          </article>
+        </> : config.support && channel === config.support.channel ? <>
           <article className="message compact support-bot-reply"><div className="avatar support-bot-avatar">{config.support.bot_name[0]}</div><div className="message-content"><div className="message-meta"><strong>{config.support.bot_name}</strong><span className="bot-label">APP</span><time>just now</time></div><p>{config.support.acknowledgement.replaceAll('{{author}}', threadMessage.author).replaceAll('{{program}}', config.program.name)}</p><button className="thread-faq-link" onClick={() => { setThreadOpen(false); setChannelView('faq') }}><FileText /> {config.support.faq_title}</button><div className="support-ticket-row"><button disabled={resolvedThreads.includes(threadMessage.id)} onClick={() => setResolvedThreads((current) => [...current, threadMessage.id])}>{resolvedThreads.includes(threadMessage.id) ? <><Check /> Resolved</> : 'Mark as resolved'}</button></div></div></article>
         </> : <>
           <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>

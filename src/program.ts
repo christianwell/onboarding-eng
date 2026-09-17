@@ -104,13 +104,26 @@ export const workspaceMembers: SimulatedPerson[] = [
   { name: 'Priya', username: 'priya', color: '#9c6ade' },
 ]
 
-export interface SafetyReportConfig {
-  spam: { from: SimulatedPerson & { app?: boolean }; message: string; time?: string }
-  moderator: SimulatedPerson & { greeting?: string; acknowledgement?: string }
-  steps: { notice: LessonCopy; find: LessonCopy; send: LessonCopy }
+export interface ShroudPromptCopy {
+  intro: string
+  anonymousOption: string
+  anonymousOptionHint: string
+  submit: string
+  cancel: string
+  submitted: string
+  submittedAnonymously: string
+  forwarded: string
+  cancelled: string
+  cancelledConfirmation: string
 }
 
-export const safetyReportSteps = ['notice', 'find', 'send'] as const
+export interface SafetyReportConfig {
+  spam: { from: SimulatedPerson & { app?: boolean }; message: string; time?: string }
+  moderator: SimulatedPerson & { greeting?: string; prompt: ShroudPromptCopy }
+  steps: { notice: LessonCopy; find: LessonCopy; send: LessonCopy; submit: LessonCopy }
+}
+
+export const safetyReportSteps = ['notice', 'find', 'send', 'submit'] as const
 
 export const defaultSafetyReport: SafetyReportConfig = {
   spam: {
@@ -128,7 +141,18 @@ export const defaultSafetyReport: SafetyReportConfig = {
     username: 'shroud',
     color: '#ec3750',
     avatar: '/people/shroud.jpg',
-    acknowledgement: 'This report has been submitted. We\'ve received your report and should get back to you within a couple hours.',
+    prompt: {
+      intro: 'Ready to send this report to FD. It\'ll be sent anonymously unless you check the box below.',
+      anonymousOption: 'Include my username',
+      anonymousOptionHint: 'FD will see who filed this report. Leave unchecked to stay anonymous.',
+      submit: 'Submit',
+      cancel: 'Cancel',
+      submitted: 'This report has been submitted. We\'ve received your report and should get back to you within a couple hours.',
+      submittedAnonymously: 'This report has been submitted anonymously. We\'ve received your report and should get back to you within a couple hours.',
+      forwarded: 'Message content forwarded. Any replies to the forwarded message will be sent back to you as a threaded reply. If you wish to add additional context, reply in the thread.',
+      cancelled: 'This report has been cancelled.',
+      cancelledConfirmation: 'Report has been cancelled successfully.',
+    },
   },
   steps: {
     notice: {
@@ -151,6 +175,13 @@ export const defaultSafetyReport: SafetyReportConfig = {
       body: 'Write who messaged you, what they said, and any other context you think is important. The more details you provide, the better!',
       task: 'Send @shroud your report.',
       hint: 'Try “someone just sent me an advert in my DMs”',
+    },
+    submit: {
+      eyebrow: 'Keep Hack Club kind',
+      title: 'Anonymous, or with your name on it?',
+      body: 'You can choose to include your username in the report, or keep it anonymous. Either way, the Fire Department will follow up with you in a thread on your DM.',
+      task: 'Open the thread and hit Submit.',
+      hint: 'Ticking “Include my username” lets FD follow up knowing it was you. Leaving it unchecked keeps the report anonymous.',
     },
   },
 }
