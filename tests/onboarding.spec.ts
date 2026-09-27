@@ -104,6 +104,21 @@ test('guides a mobile user through the channel drawer', async ({ page }) => {
   await expect(page.getByText('Mission complete!')).toBeVisible()
 })
 
+test('keeps the highlighted search bar centered during the search lesson', async ({ page }) => {
+  await page.setViewportSize({ width: 1020, height: 504 })
+  await page.goto('/program/stardance')
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions'] })))
+  await page.reload()
+
+  await expect(page.getByRole('heading', { name: /search before asking again/i })).toBeVisible()
+  const searchBar = page.getByRole('button', { name: /search hack club/i })
+  await expect(searchBar).toHaveCSS('position', 'absolute')
+  await expect.poll(async () => {
+    const box = await searchBar.boundingBox()
+    return box ? box.x + box.width / 2 : 0
+  }).toBe(510)
+})
+
 test('guides a mobile user into Christian’s DMs', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await page.goto('/program/stardance')

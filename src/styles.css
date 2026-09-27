@@ -1244,8 +1244,11 @@ button { color: inherit; }
 .coach-beside-panel input { pointer-events: auto; }
 .guide-arrow { will-change: left, top; }
 
-/* The spotlight ring supplies the target cue; no per-element glow needed. */
-.target-pulse, .target-action, .target-composer, .target-sidebar { position: relative; z-index: 50; }
+/* The spotlight ring supplies the target cue; no per-element glow needed.
+   The header search is already absolutely positioned, so keep its centring
+   intact while lifting it above the dimmer. */
+.target-pulse, .target-action, .target-composer, .target-sidebar { z-index: 50; }
+.target-pulse:not(.search-trigger), .target-action, .target-composer, .target-sidebar { position: relative; }
 
 @keyframes hcFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes hcFadeUp { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
