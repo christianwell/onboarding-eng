@@ -514,6 +514,13 @@ function App() {
     setSpamDelivered(true)
   }, [activeLesson, completed, introComplete, report])
 
+  useEffect(() => {
+    if (!introComplete || window.innerWidth > 620) return
+    if (activeLesson === 'search' || activeLesson === 'dms' && directMessage !== 'Christian') {
+      setSidebarOpen(true)
+    }
+  }, [activeLesson, directMessage, introComplete, reportPhase])
+
   // The anchor starts at 0,0 because the first position is only known after a
   // measuring pass. Snapping to that first placement keeps the card from
   // sliding in diagonally from the corner; later moves animate.
@@ -562,11 +569,12 @@ function App() {
 
     const positionGuide = () => {
       const isMobile = window.innerWidth <= 620
-      const memberSearchSelector = () => spotlightMemberInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : '.search-trigger'
+      const workspaceSearchSelector = isMobile ? '.mobile-home-search' : '.search-trigger'
+      const memberSearchSelector = () => spotlightMemberInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : workspaceSearchSelector
       const selector = !introComplete
         ? null
         : isMobile && activeLesson === 'channels'
-          ? sidebarOpen ? '.target-sidebar' : '.mobile-menu'
+          ? sidebarOpen ? '.mobile-target-channel' : '.mobile-channel-back'
         : activeLesson === 'notifications' && notificationsOpen
         ? '.notification-menu'
         : activeLesson === 'threads' && threadOpen
@@ -574,8 +582,8 @@ function App() {
         : reportPhase
           ? reportPhase === 'send' ? '.target-composer'
           : reportPhase === 'submit' ? '.target-action'
-          : reportPhase === 'find' ? memberSearchSelector()
-          : isMobile && !sidebarOpen ? '.mobile-menu' : '.spam-dm'
+          : reportPhase === 'find' ? isMobile && !sidebarOpen ? '.mobile-channel-back' : memberSearchSelector()
+          : isMobile && !sidebarOpen ? '.mobile-channel-back' : isMobile ? '.mobile-spam-dm' : '.spam-dm'
         : activeLesson === 'dms'
           ? directMessage === 'Christian' ? '.target-composer' : memberSearchSelector()
         : activeLesson === 'channels'
@@ -584,17 +592,14 @@ function App() {
             ? '.target-composer'
             : activeLesson === 'threads' || activeLesson === 'reactions'
               ? '.target-action'
-              : activeLesson === 'search' || activeLesson === 'notifications'
-                ? '.target-pulse'
+              : activeLesson === 'search'
+                ? workspaceSearchSelector
+                : activeLesson === 'notifications'
+                  ? '.target-pulse'
                 : null
       const target = selector ? document.querySelector<HTMLElement>(selector) : null
       const guide = document.querySelector<HTMLElement>('.coach')
       if (!guide) return
-
-      if (target && reportPhase === 'notice') {
-        const rect = target.getBoundingClientRect()
-        if (rect.bottom > window.innerHeight - 12 || rect.top < 12) target.scrollIntoView({ block: 'center' })
-      }
 
       const guideWidth = guide.offsetWidth
       const guideHeight = guide.offsetHeight
@@ -608,19 +613,44 @@ function App() {
       setSpotlightInPanel(ringInPanel)
 
       if (isMobile) {
+        const guideBottomInset = sidebarOpen ? 78 : 8
+        const guideAtTop = introComplete && (
+          activeLesson === 'messages'
+          || activeLesson === 'pings'
+          || reportPhase === 'send'
+          || reportPhase === 'submit' && threadOpen
+          || activeLesson === 'dms' && directMessage === 'Christian'
+          || activeLesson === 'threads' && threadOpen
+        )
+        const top = !introComplete
+          ? Math.max(50, (window.innerHeight - guideHeight) / 2)
+          : guideAtTop
+            ? 54
+            : Math.max(50, window.innerHeight - guideHeight - guideBottomInset)
+
         if (target && !isActiveComplete && !skipRing) {
-          const rect = target.getBoundingClientRect()
+          let rect = target.getBoundingClientRect()
+          const targetBottomLimit = top - 12
+          const scrollContainer = target.closest<HTMLElement>('.mobile-home-list, .messages')
+          if (!guideAtTop && scrollContainer) {
+            const containerRect = scrollContainer.getBoundingClientRect()
+            const targetTopLimit = containerRect.top + 12
+            if (rect.top < targetTopLimit) {
+              scrollContainer.scrollTop -= targetTopLimit - rect.top
+              rect = target.getBoundingClientRect()
+            }
+            const visibleBottom = Math.min(containerRect.bottom - 12, targetBottomLimit)
+            if (rect.bottom > visibleBottom) {
+              scrollContainer.scrollTop += rect.bottom - visibleBottom
+              rect = target.getBoundingClientRect()
+            }
+          }
           setSpotlight(ringInPanel || insideThreadPanel
             ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
             : { left: Math.max(2, rect.left - 6), top: Math.max(2, rect.top - 6), width: rect.width + 12, height: rect.height + 12 })
         } else {
           setSpotlight(null)
         }
-        const top = !introComplete
-          ? Math.max(50, (window.innerHeight - guideHeight) / 2)
-          : activeLesson === 'messages' || activeLesson === 'pings' || reportPhase === 'send' || activeLesson === 'dms' && directMessage === 'Christian'
-            ? 54
-            : Math.max(50, window.innerHeight - guideHeight - 8)
         setGuidePosition({ left: 8, top })
         return
       }
@@ -728,6 +758,15 @@ function App() {
       document.removeEventListener('keydown', onKey)
     }
   }, [notificationsOpen])
+
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false)
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [sidebarOpen])
 
   // Pin the initial conversation and newly sent messages to the bottom. A different
   // conversation can contain more messages, so compare counts only within the same
@@ -1060,9 +1099,9 @@ function App() {
           <BootScreen />
         </motion.div>}
       </AnimatePresence>
-    <main className={`app-shell ${threadOpen && threadMessage ? 'thread-open' : ''}`} style={{ '--program': config.program.color } as React.CSSProperties}>
+    <main className={`app-shell ${threadOpen && threadMessage ? 'thread-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`} style={{ '--program': config.program.color } as React.CSSProperties}>
       <header className="topbar">
-        <button className="mobile-menu" aria-label="Open channel list" onClick={() => setSidebarOpen(true)}><Menu /></button>
+        <button className="mobile-menu" aria-label="Open channel list" aria-controls="workspace-sidebar" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><Menu /></button>
         <div className="topbar-history">
           <button className="history-button" aria-label="Back in history"><ArrowLeft /></button>
           <button className="history-button" aria-label="Forward in history"><ArrowRight /></button>
@@ -1087,7 +1126,50 @@ function App() {
         <button className="rail-profile"><span>Y</span></button>
       </nav>
 
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <section className={`mobile-home ${sidebarOpen ? 'open' : ''}`} aria-label="Hack Club home">
+        <header className="mobile-home-header">
+          <div className="mobile-workspace-title">
+            <img src="https://avatars.slack-edge.com/2026-09-05/11996709803553_51617fa11c671209cbf0_88.png" alt="" />
+            <strong>Hack Club</strong><ChevronDown />
+            <span className="mobile-profile">Y</span>
+          </div>
+          <button className={`mobile-home-search ${targetLesson === 'search' || activeLesson === 'dms' || reportPhase === 'find' ? 'target-pulse' : ''}`} aria-label="Search Hack Club" onClick={() => setSearchOpen(true)}><Search /><span>Jump to or search...</span><Mic /></button>
+          <div className="mobile-home-tiles" aria-label="Workspace shortcuts">
+            <button><MessageCircle /><span><strong>Catch up</strong><small>3 more</small></span></button>
+            <button><MessagesSquare /><span><strong>Threads</strong><small>2 new</small></span></button>
+            <button><Clock3 /><span><strong>Later</strong><small>2 items</small></span></button>
+          </div>
+        </header>
+        <div className="mobile-home-list">
+          <div className="mobile-home-section">
+            <div className="mobile-section-heading"><span>Channels</span><ChevronDown /></div>
+            {joinedChannels.map((name) => {
+              const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
+              return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'mobile-target-channel' : ''}`} onClick={() => selectChannel(name)}><Hash /><span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
+            })}
+            <button onClick={() => { setDirectMessage(null); setChannelView('discover'); setSidebarOpen(false) }}><Plus /> <span>Add channels</span></button>
+          </div>
+          <div className="mobile-home-section">
+            <div className="mobile-section-heading"><span>Direct messages</span><ChevronDown /></div>
+            {report && spamDelivered && <button
+              className={`${directMessage === spamSender ? 'selected' : ''} ${spamRead ? '' : 'unread'} ${targetLesson === 'safety' && reportPhase === 'notice' ? 'mobile-spam-dm' : ''}`}
+              onClick={() => selectDirectMessage(spamSender!)}
+            ><span className="dm-dot" style={{ background: report.spam.from.color }}>{spamSender![0]}{report.spam.from.avatar && <img src={assetUrl(report.spam.from.avatar)} alt="" onError={hideBrokenImage} />}<i /></span><span>{spamSender}</span>{!spamRead && <i>1</i>}</button>}
+            <button onClick={() => selectDirectMessage('Nova')}><span className="dm-dot avatar-nova">N<i /></span><span>Nova</span></button>
+            <button onClick={() => selectDirectMessage('Mika')}><span className="dm-dot avatar-mika">M<i /></span><span>Mika</span></button>
+          </div>
+        </div>
+        <button className="mobile-compose" aria-label="New message"><SquarePen /></button>
+        <nav className="mobile-tabbar" aria-label="Mobile Slack navigation">
+          <button className="active"><House /><span>Home</span></button>
+          <button><MessagesSquare /><span>DMs</span></button>
+          <button><Bell /><i>12</i><span>Activity</span></button>
+          <button><FileText /><span>Files</span></button>
+          <button><MoreHorizontal /><span>More</span></button>
+        </nav>
+      </section>
+
+      <aside id="workspace-sidebar" className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Hack Club channels">
         <div className="workspace-title"><div><strong>Hack Club <ChevronDown size={14} /></strong></div><button className="workspace-settings" aria-label="Workspace settings"><Settings /></button><button className="compose-new" aria-label="New message"><SquarePen /></button><button className="close-sidebar" aria-label="Close channel list" onClick={() => setSidebarOpen(false)}><X /></button></div>
         <button className="sidebar-search"><ListFilter size={15} /> <span>Find a conversation…</span></button>
         <button className="sidebar-item"><MessageCircle size={16} /> Threads</button>
@@ -1119,9 +1201,10 @@ function App() {
         </div>
       </aside>
 
-      <section className={`conversation ${directMessage ? 'direct-conversation' : ''}`}>
+      <section className={`conversation ${directMessage ? 'direct-conversation' : ''} ${reportPhase === 'find' && directMessage === spamSender ? 'reading-report-dm' : ''}`}>
         <header className="channel-header">
-          <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} {directMessage ?? channel}</h2><p>{channelPurpose}</p></div>
+          <button className="mobile-channel-back" aria-label="Open channel list" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><ChevronLeft /></button>
+          <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} {directMessage ?? channel}</h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
           <div className="header-actions">
             <button><UserRound size={17} /><span>82,896</span></button>
             <button className="huddle-button"><Headphones size={17} /><ChevronDown size={14} /></button>
@@ -1254,7 +1337,7 @@ function App() {
           </div>
           <div className="compose-row"><input ref={composerRef} value={draft} onChange={(event) => updateDraft(event.target.value, event.target.selectionStart ?? event.target.value.length)} onKeyDown={handleComposerKeyDown} placeholder={directMessage ? `Message ${directMessage}` : `Message #${channel}`} aria-label={directMessage ? `Message ${directMessage}` : `Message ${channel}`} aria-autocomplete="list" aria-controls={mentionMenuOpen ? 'mention-suggestions' : undefined} aria-expanded={mentionMenuOpen} /></div>
           {mentionMenuOpen && <div id="mention-suggestions" className="mention-menu" role="listbox" aria-label="People to ping"><strong>Ping someone</strong>{mentionMatches.map((member, index) => <button key={member.username} type="button" role="option" aria-selected={index === mentionActiveIndex} className={index === mentionActiveIndex ? 'active' : ''} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setMentionActiveIndex(index)} onClick={() => selectMention(member.name)}><span className="dm-dot" style={{ background: member.color }}>{member.name[0]}<i /></span><span><b>{member.name}</b><small>@{member.username}</small></span><kbd>Enter</kbd></button>)}</div>}
-          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={targetLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={openMentionMenu}><AtSign /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
+          <div className="composer-actions" role="toolbar" aria-label="Composer actions"><div><button type="button" aria-label="Add attachment"><Plus /></button><button type="button" aria-label="Formatting"><strong>Aa</strong></button><button type="button" aria-label="Add emoji"><SmilePlus /></button><button type="button" className={targetLesson === 'pings' ? 'target-pulse' : ''} aria-label="Mention someone" onClick={openMentionMenu}><AtSign /></button><button type="button" className="mobile-composer-more" aria-label="More composer actions"><MoreHorizontal /></button><i className="action-divider" /><button type="button" aria-label="Record video"><Video /></button><button type="button" aria-label="Record audio"><Mic /></button><i className="action-divider" /><button type="button" aria-label="Run shortcut" className="shortcut-button">/</button></div><div className="send-actions"><button className="send-button" disabled={!draft.trim()} aria-label="Send message"><Send size={17} /></button><button type="button" className="send-options" disabled={!draft.trim()} aria-label="Schedule for later"><ChevronDown /></button></div></div>
           <div className="simulation-note"><ShieldCheck size={13} /> Practice mode · messages stay on this device</div>
         </form>}
         {!directMessage && channelView === 'messages' && isReadOnlyChannel(config, channel) && <div className="read-only-notice"><ShieldCheck /><div><strong>Only certain people can post in this channel</strong></div></div>}
@@ -1287,7 +1370,7 @@ function App() {
         transition={hasPlaced ? (movesDiagonally ? guideArcSpring : guideSpring) : { duration: 0 }}
       >
       <motion.aside
-        className={`coach coach-${activeLesson} ${introComplete ? 'coach-active' : 'coach-intro'}`}
+        className={`coach coach-${activeLesson} ${reportPhase ? `coach-report-${reportPhase}` : ''} ${introComplete ? 'coach-active' : 'coach-intro'}`}
         initial={{ y: '148%', scale: 1.592 }}
         animate={booting ? { y: '148%', scale: 1.592 } : { y: 0, scale: 1 }}
         transition={guideRise}
@@ -1331,7 +1414,7 @@ function App() {
         <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p></div></article>
         <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
         {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
-          <article className={`message compact shroud-prompt ${reportPhase === 'submit' ? 'target-action' : ''}`}>
+          <article className="message compact shroud-prompt">
             <div className="avatar small-avatar" style={{ background: report.moderator.color }}>{report.moderator.name[0]}{report.moderator.avatar && <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />}</div>
             <div className="message-content">
               <div className="message-meta"><strong>{report.moderator.name}</strong><span className="bot-label">APP</span><time>now</time></div>
@@ -1342,7 +1425,7 @@ function App() {
                   <span><strong>{report.moderator.prompt.anonymousOption}</strong><small>{report.moderator.prompt.anonymousOptionHint}</small></span>
                 </label>
                 <div className="shroud-actions">
-                  <button type="button" className="block-button primary" onClick={submitReport}>{report.moderator.prompt.submit}</button>
+                  <button type="button" className={`block-button primary ${reportPhase === 'submit' ? 'target-action' : ''}`} onClick={submitReport}>{report.moderator.prompt.submit}</button>
                   <button type="button" className="block-button danger" onClick={cancelReport}>{report.moderator.prompt.cancel}</button>
                 </div>
               </> : <p>{reportStatus === 'cancelled'
