@@ -25,11 +25,11 @@ export interface LessonCopy {
 // Reviewed human-authored copy from PR #1. Program configs may override any lesson.
 export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   channels: {
-    eyebrow: 'Find your place',
-    title: 'Channels keep conversations organized',
-    body: 'Every channel has a topic. Program channels are where you ask questions; community channels help you find people who build what you build.',
-    task: 'Open the sidebar, then choose #stardance.',
-    hint: 'Look in the flat “Channels” list.',
+    eyebrow: 'find a channel that matchs you',
+    title: 'Channels are normaly specific on one topic',
+    body: 'channels mustly have a topic, remeber to stay thread !',
+    task: 'Open the sidebar, and then choose #stardance.',
+    hint: 'look in the channel list',
   },
   messages: {
     eyebrow: 'Say hello',

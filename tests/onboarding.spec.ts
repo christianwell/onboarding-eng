@@ -1,4 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+
+async function expectTargetClearOfGuide(page: Page, target: Locator) {
+  await expect(target).toBeVisible()
+  await expect.poll(async () => {
+    const targetBox = await target.boundingBox()
+    const guideBox = await page.locator('.coach').boundingBox()
+    const viewport = page.viewportSize()
+    return Boolean(targetBox && guideBox && viewport
+      && targetBox.y >= 0
+      && targetBox.y + targetBox.height <= viewport.height
+      && (targetBox.y + targetBox.height <= guideBox.y || guideBox.y + guideBox.height <= targetBox.y))
+  }).toBe(true)
+}
 
 test('returns to the calling website after all nine lessons', async ({ page }) => {
   test.setTimeout(90_000)
@@ -91,17 +104,68 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await expect(page.getByText('A constellation game')).toBeVisible()
 })
 
-test('guides a mobile user through the channel drawer', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 667 })
+test('guides a mobile user from a channel through Slack Home', async ({ page }) => {
+  await page.setViewportSize({ width: 340, height: 510 })
   await page.goto('/program/stardance')
   await page.getByRole('button', { name: /let’s get started/i }).click()
 
   await expect(page.getByRole('button', { name: 'Open channel list' })).toBeVisible()
   await page.getByRole('button', { name: 'Open channel list' }).click()
+  await expect(page.getByRole('button', { name: 'Open channel list' })).toHaveAttribute('aria-expanded', 'true')
+  const mobileNavigation = page.getByRole('navigation', { name: 'Mobile Slack navigation' })
+  await expect(mobileNavigation).toBeVisible()
+  await expect(mobileNavigation.getByRole('button', { name: 'Home' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'stardance', exact: true })).toBeVisible()
+  await expect.poll(async () => {
+    const target = await page.getByRole('button', { name: 'stardance', exact: true }).boundingBox()
+    const guide = await page.locator('.coach').boundingBox()
+    const navigation = await mobileNavigation.boundingBox()
+    return Boolean(target && guide && navigation
+      && target.y + target.height <= guide.y
+      && guide.y + guide.height <= navigation.y)
+  }).toBe(true)
   await page.getByRole('button', { name: 'stardance', exact: true }).click()
 
   await expect(page.getByText('Mission complete!')).toBeVisible()
+})
+
+test('keeps short mobile lesson targets clear of the guide', async ({ page }) => {
+  test.setTimeout(45_000)
+  await page.setViewportSize({ width: 340, height: 510 })
+  await page.goto('/program/stardance')
+
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms'] })))
+  await page.reload()
+  const threadTarget = page.getByRole('button', { name: /2 replies/i })
+  await expectTargetClearOfGuide(page, threadTarget)
+  await threadTarget.click()
+  await expectTargetClearOfGuide(page, page.locator('.thread-composer'))
+
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads'] })))
+  await page.reload()
+  await expectTargetClearOfGuide(page, page.getByRole('button', { name: /add a ⭐ reaction/i }))
+
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions', 'search', 'notifications'] })))
+  await page.reload()
+  await page.getByRole('button', { name: 'Open channel list' }).click()
+  const suspiciousDm = page.locator('.mobile-spam-dm')
+  await expectTargetClearOfGuide(page, suspiciousDm)
+  await suspiciousDm.click()
+  await expectTargetClearOfGuide(page, page.getByText(/investing in my AI company/i))
+  await expectTargetClearOfGuide(page, page.getByRole('button', { name: 'Open channel list' }))
+  await page.getByRole('button', { name: 'Open channel list' }).click()
+  await expectTargetClearOfGuide(page, page.getByRole('button', { name: /search hack club/i }))
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('shroud')
+  await page.getByRole('button', { name: /open dm with shroud/i }).click()
+  await page.getByLabel('Message shroud').fill('Someone sent me an advert in my DMs.')
+  await expectTargetClearOfGuide(page, page.locator('.target-composer'))
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const reportThread = page.getByRole('button', { name: /1 reply/i })
+  await expectTargetClearOfGuide(page, reportThread)
+  await reportThread.click()
+  const submit = page.getByRole('button', { name: 'Submit', exact: true })
+  await expectTargetClearOfGuide(page, submit)
 })
 
 test('keeps the highlighted search bar centered during the search lesson', async ({ page }) => {
@@ -178,7 +242,7 @@ test('supports canvases, channel discovery, read-only channels, and scoped searc
 
   await page.getByRole('button', { name: 'Your Guide to using Slack' }).click()
   await expect(page.getByRole('heading', { name: 'Your Guide to using Slack' })).toBeVisible()
-  await expect(page.getByText('Channels keep conversations organized')).toBeVisible()
+  await expect(page.getByText('Channels are normaly specific on one topic')).toBeVisible()
 
   await page.getByRole('button', { name: 'Discover channels' }).click()
   await expect(page.getByRole('heading', { name: 'Public and active personal channels you can join' })).toBeVisible()
