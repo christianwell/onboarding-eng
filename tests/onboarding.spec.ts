@@ -242,7 +242,7 @@ test('supports canvases, channel discovery, read-only channels, and scoped searc
 
   await page.getByRole('button', { name: 'Your Guide to using Slack' }).click()
   await expect(page.getByRole('heading', { name: 'Your Guide to using Slack' })).toBeVisible()
-  await expect(page.getByText('Channels keep conversations organized')).toBeVisible()
+  await expect(page.getByText('Channels are normaly specific on one topic')).toBeVisible()
 
   await page.getByRole('button', { name: 'Discover channels' }).click()
   await expect(page.getByRole('heading', { name: 'Public and active personal channels you can join' })).toBeVisible()
