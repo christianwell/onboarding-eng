@@ -200,11 +200,24 @@ test('guides a mobile user into Christian’s DMs', async ({ page }) => {
   await expect(page.getByText('Mission complete!')).toBeVisible()
 })
 
-test('redirects the root to Slack onboarding and preserves link parameters', async ({ page }) => {
-  await page.goto('/?return_to=https%3A%2F%2Fhackclub.com%2F&utm_source=slack#guide')
-  await expect(page).toHaveURL('http://127.0.0.1:4173/slack?return_to=https%3A%2F%2Fhackclub.com%2F&utm_source=slack#guide')
-  await expect(page.getByRole('heading', { name: /welcome to #lounge/i })).toBeVisible()
-})
+for (const referrer of ['https://slack.com/', 'https://hackclub.slack.com/archives/example', 'https://app.slack.com/']) {
+  test(`redirects the root to Slack onboarding from ${referrer}`, async ({ page }) => {
+    await page.goto('/?return_to=https%3A%2F%2Fhackclub.com%2F&utm_source=slack#guide', { referer: referrer })
+    await expect(page).toHaveURL('http://127.0.0.1:4173/slack?return_to=https%3A%2F%2Fhackclub.com%2F&utm_source=slack#guide')
+    await expect(page.getByRole('heading', { name: /welcome to #lounge/i })).toBeVisible()
+  })
+}
+
+for (const referrer of ['', 'https://hackclub.com/', 'https://slack.com.example.com/', 'https://notslack.com/']) {
+  test(`redirects the root to GitHub from ${referrer || 'a direct visit'}`, async ({ page }) => {
+    await page.route('https://github.com/christianwell/onboarding-eng', (route) => route.fulfill({
+      contentType: 'text/html',
+      body: '<h1>onboarding-eng</h1>',
+    }))
+    await page.goto('/', referrer ? { referer: referrer } : {})
+    await expect(page).toHaveURL('https://github.com/christianwell/onboarding-eng')
+  })
+}
 
 test('loads the general Hack Club Slack preset', async ({ page }) => {
   await page.goto('/program/slack')

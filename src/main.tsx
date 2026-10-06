@@ -6,10 +6,19 @@ import FlowTester from './FlowTester'
 import ProgramBuilder from './ProgramBuilder'
 import './styles.css'
 
-// The root already uses the Slack preset. Give it a canonical URL even when
-// Slack's desktop/mobile app does not provide a browser referrer.
+// Only Slack referrals should enter the guide from the homepage.
 if (window.location.pathname === import.meta.env.BASE_URL) {
-  window.location.replace(`${import.meta.env.BASE_URL}slack${window.location.search}${window.location.hash}`)
+  let fromSlack = false
+  try {
+    const referrer = new URL(document.referrer)
+    fromSlack = (referrer.protocol === 'https:' || referrer.protocol === 'http:')
+      && (referrer.hostname === 'slack.com' || referrer.hostname.endsWith('.slack.com'))
+  } catch {
+    // Direct visits and referrals without a URL use the GitHub homepage.
+  }
+  window.location.replace(fromSlack
+    ? `${import.meta.env.BASE_URL}slack${window.location.search}${window.location.hash}`
+    : 'https://github.com/christianwell/onboarding-eng')
 } else {
   initAnalytics()
 
