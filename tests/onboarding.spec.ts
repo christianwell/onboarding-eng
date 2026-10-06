@@ -200,6 +200,12 @@ test('guides a mobile user into Christian’s DMs', async ({ page }) => {
   await expect(page.getByText('Mission complete!')).toBeVisible()
 })
 
+test('redirects the root to Slack onboarding and preserves link parameters', async ({ page }) => {
+  await page.goto('/?return_to=https%3A%2F%2Fhackclub.com%2F&utm_source=slack#guide')
+  await expect(page).toHaveURL('http://127.0.0.1:4173/slack?return_to=https%3A%2F%2Fhackclub.com%2F&utm_source=slack#guide')
+  await expect(page.getByRole('heading', { name: /welcome to #lounge/i })).toBeVisible()
+})
+
 test('loads the general Hack Club Slack preset', async ({ page }) => {
   await page.goto('/program/slack')
   await expect(page).toHaveTitle(/^Hack Club · /)
