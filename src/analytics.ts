@@ -1,5 +1,10 @@
-import { init, track } from '@plausible-analytics/tracker'
 import { LessonId } from './program'
+
+declare global {
+  interface Window {
+    plausible?: (name: string, options?: { props?: Record<string, string> }) => void
+  }
+}
 
 const lessonNames: Record<LessonId, string> = {
   channels: 'Channels',
@@ -13,12 +18,8 @@ const lessonNames: Record<LessonId, string> = {
   safety: 'Safety',
 }
 
-export function initAnalytics() {
-  init({ domain: window.location.hostname })
-}
-
 export function trackEvent(name: string, props?: Record<string, string>) {
-  track(name, { props })
+  window.plausible?.(name, { props })
 }
 
 export function trackLessonCompleted(lesson: LessonId, program: string, position: number, total: number) {

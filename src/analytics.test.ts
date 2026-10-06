@@ -1,14 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { track } from '@plausible-analytics/tracker'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { trackEvent, trackLessonCompleted } from './analytics'
 
-vi.mock('@plausible-analytics/tracker', () => ({
-  init: vi.fn(),
-  track: vi.fn(),
-}))
+const track = vi.fn()
 
 describe('analytics', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('window', { plausible: track })
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps onboarding working when the tracker is unavailable', () => {
+    vi.stubGlobal('window', {})
+
+    expect(() => trackEvent('Onboarding Started')).not.toThrow()
+  })
 
   it('tracks named funnel events with safe properties', () => {
     trackEvent('Onboarding Started', { program: 'stardance' })

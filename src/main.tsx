@@ -1,6 +1,5 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { initAnalytics } from './analytics'
 import App from './App'
 import FlowTester from './FlowTester'
 import ProgramBuilder from './ProgramBuilder'
@@ -20,8 +19,6 @@ if (window.location.pathname === import.meta.env.BASE_URL) {
     ? `${import.meta.env.BASE_URL}slack${window.location.search}${window.location.hash}`
     : 'https://github.com/christianwell/onboarding-eng')
 } else {
-  initAnalytics()
-
   const pathname = window.location.pathname.replace(/\/$/, '')
   const Page = pathname.endsWith('/flow-tester')
     ? FlowTester
