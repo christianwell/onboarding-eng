@@ -39,7 +39,7 @@ import {
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import NumberFlow from '@number-flow/react'
-import { AnimatePresence, arc, motion, MotionConfig } from 'motion/react'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { trackEvent, trackLessonCompleted } from './analytics'
 import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
@@ -272,13 +272,9 @@ function fireMissionConfetti(programColor: string) {
   confetti({ ...shared, angle: 120, origin: { x: 1, y: 0.7 } })
 }
 
-const guideSpring = { type: 'spring' as const, visualDuration: 0.42, bounce: 0.18 }
-const guideArcSpring = { ...guideSpring, path: arc({ strength: 0.14 }) }
+const guideSpring = { type: 'spring' as const, visualDuration: 0.3, bounce: 0 }
 // The highlight box wants a quick snap, not a long settle.
 const spotlightSpring = { type: 'spring' as const, visualDuration: 0.36, bounce: 0.2 }
-// Traced off the reference clip: rises 1.48x its own height while scaling down
-// from 1.59, on one decelerating curve with no overshoot.
-const guideRise = { type: 'spring' as const, visualDuration: 0.5, bounce: 0 }
 const minimumBootMs = 480
 
 function BootScreen() {
@@ -370,7 +366,6 @@ function App() {
   const [hasPlaced, setHasPlaced] = useState(false)
   const [booting, setBooting] = useState(true)
   const bootStartedAt = useRef(Date.now())
-  const lastGuidePosition = useRef<{ left: number; top: number } | null>(null)
   const [guidePosition, setGuidePosition] = useState<{ left: number; top: number } | null>(null)
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const composerRef = useRef<HTMLInputElement>(null)
@@ -499,14 +494,6 @@ function App() {
   const allLessonsComplete = config ? completed.length === lessons.length : false
   const allComplete = finished && allLessonsComplete
   const guideProgress = lessons.length ? Math.round(((lessonIndex + 1) / (lessons.length + 1)) * 100) : 0
-  const previousGuidePosition = lastGuidePosition.current
-  const movesDiagonally = Boolean(guidePosition && previousGuidePosition
-    && Math.abs(guidePosition.left - previousGuidePosition.left) > 2
-    && Math.abs(guidePosition.top - previousGuidePosition.top) > 2)
-
-  useEffect(() => {
-    if (guidePosition) lastGuidePosition.current = guidePosition
-  }, [guidePosition])
 
   useEffect(() => {
     if (!report || !introComplete || activeLesson !== 'safety') return
@@ -528,8 +515,7 @@ function App() {
     if (guidePosition && !hasPlaced) setHasPlaced(true)
   }, [guidePosition, hasPlaced])
 
-  // Lift the curtain once the program is loaded; the card's entry waits for it
-  // so the rise plays against a settled workspace rather than behind a veil.
+  // Lift the curtain once the program is loaded, then fade in the guide.
   useEffect(() => {
     if (!config) return
     const remaining = Math.max(0, minimumBootMs - (Date.now() - bootStartedAt.current))
@@ -567,7 +553,7 @@ function App() {
   useLayoutEffect(() => {
     if (allComplete) return
 
-    const positionGuide = () => {
+    const positionGuide = (revealTarget = false) => {
       const isMobile = window.innerWidth <= 620
       const workspaceSearchSelector = isMobile ? '.mobile-home-search' : '.search-trigger'
       const memberSearchSelector = () => spotlightMemberInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : workspaceSearchSelector
@@ -661,7 +647,18 @@ function App() {
       const bottomRight = { left: Math.max(12, window.innerWidth - guideWidth - 12), top: bottomLeft.top }
       const readingDirectMessage = Boolean(reportPhase && directMessage && !searchOpen)
 
-      if (!target || isActiveComplete) {
+      // Completion changes the card's contents, not its place in the workspace.
+      // Only adjust its position if the viewport can no longer contain it.
+      if (isActiveComplete) {
+        setSpotlight(null)
+        setGuidePosition((position) => position ? {
+          left: Math.min(position.left, Math.max(12, window.innerWidth - guideWidth - 12)),
+          top: Math.min(position.top, Math.max(12, window.innerHeight - guideHeight - 12)),
+        } : bottomLeft)
+        return
+      }
+
+      if (!target) {
         setSpotlight(null)
         setGuidePosition(readingDirectMessage ? bottomRight : searchOpen ? bottomLeft : {
           left: Math.max(12, (window.innerWidth - guideWidth) / 2),
@@ -670,6 +667,17 @@ function App() {
         return
       }
 
+      // A new DM may be below the channel list's scrollport. Reveal it when
+      // entering the step, before measuring the spotlight and guide position.
+      const targetSidebar = target.closest<HTMLElement>('.sidebar')
+      if (revealTarget && targetSidebar) {
+        const targetRect = target.getBoundingClientRect()
+        const sidebarRect = targetSidebar.getBoundingClientRect()
+        const topLimit = sidebarRect.top + 24
+        const bottomLimit = sidebarRect.bottom - 24
+        if (targetRect.top < topLimit) targetSidebar.scrollTop -= topLimit - targetRect.top
+        else if (targetRect.bottom > bottomLimit) targetSidebar.scrollTop += targetRect.bottom - bottomLimit
+      }
       const rect = target.getBoundingClientRect()
       setSpotlight(skipRing ? null : ringInPanel || insideThreadPanel
         ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
@@ -716,14 +724,19 @@ function App() {
       setGuidePosition({ left, top })
     }
 
-    const frame = requestAnimationFrame(positionGuide)
-    window.addEventListener('resize', positionGuide)
+    const revealAndPositionGuide = () => positionGuide(true)
+    const trackSidebarScroll = () => positionGuide()
+    const frame = requestAnimationFrame(revealAndPositionGuide)
+    window.addEventListener('resize', revealAndPositionGuide)
+    const sidebar = document.querySelector<HTMLElement>('.sidebar')
+    sidebar?.addEventListener('scroll', trackSidebarScroll)
     const card = document.querySelector<HTMLElement>('.coach')
     const observer = card ? new ResizeObserver(() => positionGuide()) : null
     if (card && observer) observer.observe(card)
     return () => {
       cancelAnimationFrame(frame)
-      window.removeEventListener('resize', positionGuide)
+      window.removeEventListener('resize', revealAndPositionGuide)
+      sidebar?.removeEventListener('scroll', trackSidebarScroll)
       observer?.disconnect()
     }
   }, [activeLesson, allComplete, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
@@ -1367,13 +1380,13 @@ function App() {
         className={`coach-anchor ${mentionMenuOpen ? 'coach-under-mention' : ''} ${searchOpen ? 'coach-beside-panel' : ''}`}
         initial={false}
         animate={{ x: guidePosition?.left ?? 0, y: guidePosition?.top ?? 0 }}
-        transition={hasPlaced ? (movesDiagonally ? guideArcSpring : guideSpring) : { duration: 0 }}
+        transition={hasPlaced ? guideSpring : { duration: 0 }}
       >
       <motion.aside
         className={`coach coach-${activeLesson} ${reportPhase ? `coach-report-${reportPhase}` : ''} ${introComplete ? 'coach-active' : 'coach-intro'}`}
-        initial={{ y: '148%', scale: 1.592 }}
-        animate={booting ? { y: '148%', scale: 1.592 } : { y: 0, scale: 1 }}
-        transition={guideRise}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: booting ? 0 : 1 }}
+        transition={{ duration: 0.15 }}
         role="dialog"
         aria-live="polite"
         aria-label={`${config.program.name} onboarding guide`}

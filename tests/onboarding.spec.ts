@@ -13,6 +13,48 @@ async function expectTargetClearOfGuide(page: Page, target: Locator) {
   }).toBe(true)
 }
 
+test('keeps the desktop guide in place when a mission completes', async ({ page }) => {
+  await page.goto('/program/stardance')
+  await page.getByRole('button', { name: /let’s get started/i }).click()
+  const guide = page.getByRole('dialog', { name: /onboarding guide/i })
+  await expect(guide).toHaveClass(/coach-active/)
+  // Wait for the move from the welcome screen to the channel target to settle.
+  await page.waitForTimeout(500)
+  const before = await guide.boundingBox()
+  expect(before).not.toBeNull()
+
+  await page.getByRole('button', { name: 'stardance', exact: true }).click()
+  await expect(page.getByText('Mission complete!')).toBeVisible()
+  await page.waitForTimeout(500)
+  const after = await guide.boundingBox()
+  expect(after).not.toBeNull()
+  expect(after!.x).toBeCloseTo(before!.x, 0)
+  expect(after!.y).toBeCloseTo(before!.y, 0)
+})
+
+test('reveals the safety DM and keeps its highlight aligned when the sidebar scrolls', async ({ page }) => {
+  await page.goto('/program/stardance')
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions', 'search', 'notifications'] })))
+  await page.reload()
+  const target = page.locator('.spam-dm')
+  await expect(target).toBeInViewport({ ratio: 1 })
+  const ring = page.locator('.guide-spotlight')
+  await expect.poll(async () => {
+    const targetBox = await target.boundingBox()
+    const ringBox = await ring.boundingBox()
+    return targetBox && ringBox ? Math.abs(ringBox.y + 8 - targetBox.y) : Infinity
+  }).toBeLessThan(1)
+
+  await page.locator('.sidebar').evaluate((sidebar) => { sidebar.scrollTop += 60 })
+  await expect.poll(async () => {
+    const targetBox = await target.boundingBox()
+    const ringBox = await ring.boundingBox()
+    return targetBox && ringBox ? Math.abs(ringBox.y + 8 - targetBox.y) : Infinity
+  }).toBeLessThan(1)
+  await target.click()
+  await expect(page.getByLabel('Message Sam Altman')).toBeVisible()
+})
+
 test('returns to the calling website after all nine lessons', async ({ page }) => {
   test.setTimeout(90_000)
   await page.goto('/flow-tester')
