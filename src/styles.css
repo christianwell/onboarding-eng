@@ -1194,33 +1194,33 @@ button { color: inherit; }
 /* The bw flag ships as a black flag with knocked-out lettering, so it needs
    inverting to become the white logo the dark card wants. */
 .guide-brand img { height: 22px; width: auto; filter: invert(1); }
-.guide-step { display: flex; align-items: center; color: #a1a1aa; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.guide-step { display: flex; align-items: center; color: #d4d4d8; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .guide-mascot { display: none; }
 .coach .progress-track { height: 3px; margin: 0 0 18px; border-radius: 4px; overflow: hidden; background: #3f3f46; }
 .coach .progress-track i { display: block; height: 100%; border-radius: inherit; background: #fff; transition: width .4s cubic-bezier(.16, 1, .3, 1); }
 .coach .lesson-card { margin: 0; padding: 0; animation: hcFadeUp .32s ease-out .46s both; }
-.lesson-eyebrow { margin: 0 0 6px; color: var(--program); font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.lesson-eyebrow { margin: 0 0 6px; color: #d4d4d8; font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
 .coach .lesson-card h2 { display: flex; align-items: baseline; gap: 9px; margin: 0 0 8px; color: #fafafa; font-size: 20px; line-height: 1.25; letter-spacing: -.01em; }
 .coach .lesson-card h2 > span { flex: 0 0 auto; font-size: 18px; line-height: 1; }
-.lesson-body { margin: 0 0 17px; color: #a1a1aa; font-size: 13px; line-height: 1.5; }
+.lesson-body { margin: 0 0 17px; color: #d4d4d8; font-size: 1rem; line-height: 1.5; }
 .task-box { display: grid; grid-template-columns: 54px 1fr; gap: 10px; align-items: center; padding: 11px; border: 1px solid #3f3f46; border-radius: 9px; color: #f4f4f5; background: #27272a; }
 .task-box > span { display: grid; place-items: center; }
 .task-box > span img { width: 54px; height: 42px; object-fit: contain; }
 .task-box div { display: flex; flex-direction: column; gap: 2px; }
-.task-box small { color: #a1a1aa; font-size: 8px; font-weight: 700; letter-spacing: .09em; }
-.task-box strong { color: #f4f4f5; font-size: 11px; line-height: 1.3; }
-.coach .lesson-card details { margin-top: 13px; color: #a1a1aa; font-size: 11px; }
+.task-box small { color: #d4d4d8; font-size: .75rem; font-weight: 700; letter-spacing: .09em; }
+.task-box strong { color: #f4f4f5; font-size: .9375rem; line-height: 1.5; }
+.coach .lesson-card details { margin-top: 13px; color: #d4d4d8; font-size: .875rem; line-height: 1.5; }
 .coach .lesson-card summary { cursor: pointer; font-weight: 600; }
-.coach .lesson-card details p { margin: 7px 0 0; padding-left: 10px; border-left: 2px solid #3f3f46; color: #a1a1aa; line-height: 1.45; }
+.coach .lesson-card details p { margin: 7px 0 0; padding-left: 10px; border-left: 2px solid #3f3f46; color: #d4d4d8; line-height: 1.5; }
 .success-box { display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid #3f3f46; border-radius: 9px; color: #f4f4f5; background: #27272a; }
 .success-box > svg { width: 20px; height: 20px; flex: 0 0 auto; padding: 3px; border-radius: 50%; color: #18181b; background: #fafafa; stroke-width: 3; }
 .success-box div { display: flex; flex-direction: column; gap: 2px; }
-.success-box strong { color: #f4f4f5; font-size: 11px; }
-.success-box span { color: #a1a1aa; font-size: 10px; }
-.intro-meta { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: #a1a1aa; font-size: 11px; }
+.success-box strong { color: #f4f4f5; font-size: .9375rem; line-height: 1.5; }
+.success-box span { color: #d4d4d8; font-size: .875rem; line-height: 1.5; }
+.intro-meta { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: #d4d4d8; font-size: .875rem; }
 .guide-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; animation: hcFadeIn .3s ease-out .56s both; }
 .coach-intro .guide-actions { justify-content: flex-end; }
-.guide-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid #3f3f46; border-radius: var(--radius-lg); padding: 8px 14px; color: #d4d4d8; background: #27272a; font-size: 12px; font-weight: 700; line-height: 16px; cursor: pointer; transition: background .18s; }
+.guide-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid #3f3f46; border-radius: var(--radius-lg); padding: 8px 14px; color: #f4f4f5; background: #27272a; font-size: .9375rem; font-weight: 700; line-height: 1.5; cursor: pointer; transition: background .18s; }
 .guide-actions button svg { flex: 0 0 auto; }
 .guide-actions button:hover { color: #fafafa; background: #3f3f46; }
 .guide-actions .guide-ghost { padding: 8px 10px 8px 8px; border-color: transparent; background: transparent; }
@@ -1233,7 +1233,7 @@ button { color: inherit; }
 .safety-quiz button strong { font-size: 10.5px; }
 .safety-quiz button small { color: #a1a1aa; font-size: 9px; margin-top: 1px; }
 .safety-quiz .quiz-feedback { margin: 8px 0 0; padding: 7px; border-radius: var(--radius-md); color: #ff9aaa; background: rgba(236, 55, 80, .12); font-size: 9.5px; font-weight: 500; }
-.safety-quiz > a, .conduct-link { display: inline-block; margin-top: 10px; color: #c1b7ff; font-size: 9.5px; font-weight: 600; }
+.safety-quiz > a, .conduct-link { display: inline-block; margin-top: 10px; color: #c1b7ff; font-size: .875rem; line-height: 1.5; font-weight: 600; }
 /* While the ping lesson is active the composer carries z-index 50, which traps
    its mention menu in that stacking context. Step the card under it for as long
    as the menu is open so the list you are picking from stays visible. */
@@ -1269,13 +1269,13 @@ button { color: inherit; }
 .completion-backdrop { place-items: center; padding: 20px; background: rgba(0, 0, 0, .58); }
 .completion-modal { position: relative; width: min(410px, 100%); padding: 34px; border: 1px solid var(--hairline); border-radius: 16px; color: var(--fg); background: var(--surface-raised); box-shadow: var(--shadow-modal); text-align: center; font-family: var(--guide-font); }
 .completion-mark { width: 58px; height: 58px; margin: 0 auto 20px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--success); }
-.completion-step { margin: 0 0 9px; color: var(--success); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.completion-step { margin: 0 0 9px; color: var(--success); font-size: .875rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .completion-modal h1 { margin: 0; font-size: 34px; line-height: 1.12; letter-spacing: -.025em; }
 .completion-modal h1 span { color: var(--program); }
-.completion-modal > p { margin: 16px auto 24px; max-width: 320px; color: var(--fg-muted); font-size: 14px; line-height: 1.5; }
-.completion-modal > a { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-lg); color: #fff; background: var(--program); text-decoration: none; font-size: 14px; font-weight: 700; }
+.completion-modal > p { margin: 16px auto 24px; max-width: 320px; color: var(--fg-muted); font-size: 1rem; line-height: 1.5; }
+.completion-modal > a { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--radius-lg); color: #fff; background: var(--program); text-decoration: none; font-size: 1rem; font-weight: 700; }
 .completion-modal > a:hover { filter: brightness(1.08); }
-.completion-modal > small { display: block; margin-top: 12px; color: var(--fg-muted); font-size: 11px; }
+.completion-modal > small { display: block; margin-top: 12px; color: var(--fg-muted); font-size: .875rem; line-height: 1.5; }
 
 /* --------------------------------------------------------------------------
    Responsive
