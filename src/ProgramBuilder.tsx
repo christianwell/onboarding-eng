@@ -1,8 +1,8 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { stringify } from 'yaml'
-import { Check, CheckCircle2, Clipboard, Download, ExternalLink, FileCode2, FolderOpen, LockKeyhole, Plus, Rocket, Settings2 } from 'lucide-react'
+import { Check, CheckCircle2, Clipboard, Download, ExternalLink, FileCode2, FolderOpen, Plus, Rocket, Settings2 } from 'lucide-react'
 import { trackEvent } from './analytics'
-import { defaultLessonCopy, LessonCopy, LessonId, ProgramConfig, internalLessonIds, validateProgram } from './program'
+import { defaultLessonCopy, LessonCopy, LessonId, ProgramConfig, validateProgram } from './program'
 import './program-builder.css'
 
 type Draft = {
@@ -35,17 +35,14 @@ type Draft = {
 const configurableLessons: { id: LessonId; label: string; detail: string }[] = [
   { id: 'channels', label: 'Channels', detail: 'Find the program home channel' },
   { id: 'messages', label: 'Messages', detail: 'Send a useful public message' },
+  { id: 'pings', label: 'Pings', detail: defaultLessonCopy.pings.title },
+  { id: 'dms', label: 'Direct messages', detail: defaultLessonCopy.dms.title },
+  { id: 'threads', label: 'Threads', detail: defaultLessonCopy.threads.title },
+  { id: 'reactions', label: 'Reactions', detail: defaultLessonCopy.reactions.title },
   { id: 'search', label: 'Search', detail: 'Find existing community answers' },
   { id: 'notifications', label: 'Notifications', detail: 'Protect focus in a busy workspace' },
   { id: 'safety', label: 'Safety', detail: 'Know how to contact moderators' },
 ]
-
-const internalLabels: Record<(typeof internalLessonIds)[number], string> = {
-  pings: 'Pings',
-  dms: 'Direct messages',
-  threads: 'Threads',
-  reactions: 'Reactions',
-}
 
 const initialDraft: Draft = {
   name: 'My Program',
@@ -302,11 +299,10 @@ function ProgramBuilder() {
         </section>
 
         <section className="builder-panel" id="lessons">
-          <header><span>3</span><div><h2>Learning path</h2><p>Choose campaign-specific lessons. Shared Slack basics are always included.</p></div></header>
+          <header><span>3</span><div><h2>Learning path</h2><p>Choose campaign-specific lessons.</p></div></header>
           <div className="lesson-picker">
             {configurableLessons.map((lesson) => <button key={lesson.id} className={draft.lessons.includes(lesson.id) ? 'selected' : ''} onClick={() => toggleLesson(lesson.id)}><span>{draft.lessons.includes(lesson.id) && <Check />}</span><div><strong>{lesson.label}</strong><small>{lesson.detail}</small></div></button>)}
           </div>
-          <div className="internal-lessons"><LockKeyhole /><div><strong>Included in every campaign</strong><p>{internalLessonIds.map((lesson) => internalLabels[lesson]).join(' · ')}</p></div></div>
         </section>
 
         <section className="builder-panel" id="copy">

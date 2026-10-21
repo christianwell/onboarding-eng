@@ -31,15 +31,12 @@ describe('program configuration', () => {
     expect(getDefaultChannels(validateProgram(config))).toEqual(['welcome', 'stardance', 'stardance-help'])
   })
 
-  it('adds the internal Slack lessons to every program', () => {
-    expect(validateProgram(config).training.lessons).toEqual([
-      'channels',
-      'messages',
-      'pings',
-      'dms',
-      'threads',
-      'reactions',
-    ])
+  it('includes only configured lessons in guide order', () => {
+    expect(validateProgram(structuredClone(config)).training.lessons).toEqual(['channels', 'messages'])
+    expect(validateProgram({
+      ...structuredClone(config),
+      training: { ...config.training, lessons: ['threads', 'dms', 'pings', 'messages'] },
+    }).training.lessons).toEqual(['messages', 'pings', 'dms', 'threads'])
   })
 
   it('rejects unknown lesson IDs', () => {

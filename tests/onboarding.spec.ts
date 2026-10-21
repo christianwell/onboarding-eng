@@ -1,4 +1,14 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { parse, stringify } from 'yaml'
+
+async function configureAllLessons(page: Page) {
+  await page.route('**/programs/stardance/config.yaml', async (route) => {
+    const response = await route.fetch()
+    const config = parse(await response.text())
+    config.training.lessons = ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions', 'search', 'notifications', 'safety']
+    await route.fulfill({ response, body: stringify(config) })
+  })
+}
 
 async function expectTargetClearOfGuide(page: Page, target: Locator) {
   await expect(target).toBeVisible()
@@ -57,6 +67,7 @@ test('reveals the safety DM and keeps its highlight aligned when the sidebar scr
 
 test('returns to the calling website after all nine lessons', async ({ page }) => {
   test.setTimeout(90_000)
+  await configureAllLessons(page)
   await page.goto('/flow-tester')
   await page.getByLabel('Your name').fill('Ada')
   await page.getByLabel('What are you making?').fill('A constellation game')
@@ -173,6 +184,7 @@ test('guides a mobile user from a channel through Slack Home', async ({ page }) 
 
 test('keeps short mobile lesson targets clear of the guide', async ({ page }) => {
   test.setTimeout(45_000)
+  await configureAllLessons(page)
   await page.setViewportSize({ width: 340, height: 510 })
   await page.goto('/program/stardance')
 
@@ -226,6 +238,7 @@ test('keeps the highlighted search bar centered during the search lesson', async
 })
 
 test('guides a mobile user into Christian’s DMs', async ({ page }) => {
+  await configureAllLessons(page)
   await page.setViewportSize({ width: 375, height: 667 })
   await page.goto('/program/stardance')
   await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings'] })))
@@ -411,7 +424,13 @@ test('builds and downloads a campaign config', async ({ page }) => {
   await expect(page.locator('.builder-preview pre')).toContainText('bot_name: Program Support')
   await expect(page.locator('.builder-preview pre')).toContainText('faq_title: Moonshot FAQ')
   await expect(page.getByText('public/programs/moonshot/logo.svg')).toBeVisible()
-  await expect(page.getByText('Pings · Direct messages · Threads · Reactions')).toBeVisible()
+  for (const label of ['Pings', 'Direct messages', 'Threads', 'Reactions']) {
+    await page.locator('.lesson-picker').getByRole('button', { name: new RegExp(`^${label}`) }).click()
+  }
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- pings')
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- dms')
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- threads')
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- reactions')
   await page.reload()
   await expect(page.getByLabel('Program name')).toHaveValue('Moonshot')
 
