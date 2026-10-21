@@ -1,5 +1,22 @@
 # Repository guidance
 
+## Working approach
+
+- Own the task from investigation through implementation and verification. Do not wait for the user to ask you to read the code, reproduce a bug, or run relevant tests.
+- Start with the issue, affected code, program config, and existing tests. For UI bugs, work from the visible element to its component, event handler, state, and config. Find an analogous implementation before introducing new machinery; distinguish a reproduced cause from a hypothesis.
+- Study unfamiliar APIs or behavior as needed using existing repository patterns, dependency documentation, and authoritative sources. Keep research focused on the current task, then apply what you learned.
+- Make small, reversible decisions independently. Ask only when essential information is unavailable, requirements conflict, or an action needs permission. Do not invent product copy to fill gaps.
+- Make the smallest complete fix, inspect the final diff, and leave unrelated changes alone. Keep the user informed at meaningful milestones rather than asking approval for routine local work.
+- Do not push, merge, deploy, or change shared systems without authorization for that action. Report what was changed, what was actually verified, and what remains local or undelivered.
+
+## Where to look
+
+- `src/App.tsx`: simulated Slack workspace, onboarding progress, lesson interactions, and guide/spotlight positioning. `src/styles.css`: shared workspace and guide layout, including responsive rules.
+- `src/program.ts`: program loading, configuration types, reviewed default lesson copy, and completion URLs. `public/programs/<slug>/config.yaml`: program-specific data and copy.
+- `src/FlowTester.tsx`: calling-site and return-flow demo. `src/ProgramBuilder.tsx`: program configuration builder. Each has its own stylesheet.
+- `src/analytics.ts`: analytics integration. Existing unit tests live beside source as `src/*.test.ts`; browser scenarios live in `tests/`.
+- Read `package.json` for current commands and `playwright.config.ts` for browser-test setup. Use `npm run dev -- --port 5173` for manual inspection; Playwright starts its own server on port 4173 when needed.
+
 ## Product rules
 
 - This is one reusable onboarding engine for every YSWS. Program-specific names, channels, help flows, FAQs, colors, and lesson wording belong in `public/programs/<slug>/config.yaml`, not in shared UI code.
@@ -21,6 +38,10 @@
 
 ## Verification
 
-- Run `npm run check` after code changes.
-- For visual UI changes, render at 1440×900 and compare the result with the saved Slack page before finishing.
-- Keep checks lightweight on this machine. Do not run the full Playwright suite unless the change requires it, and do not leave preview servers running.
+- Choose and run checks yourself based on the affected behavior. Run `npm run check` after code changes; it runs unit tests and the production build. Documentation-only changes need a diff review, not an app build.
+- For bug fixes, reproduce the failure before changing code when practical, then rerun the same scenario. Add or extend a regression test for observable behavior that existing tests do not cover; do not test private implementation details.
+- For interaction or layout changes, run relevant browser tests with `npx playwright test --workers=1 -g '<test name pattern>'`. Cover the affected step and its transitions; include short mobile screens when positioning or target visibility changes. Run the full suite only when the scope requires it.
+- Check the relevant lifecycle, not just the happy-path click: fresh entry versus resumed progress, reload/direct navigation, task completion and the next step, open/closed panels, and scroll/resize behavior as applicable. For shared engine changes, also inspect a second program config for accidental program-specific assumptions.
+- For visual UI changes, render at 1440×900 and compare with the saved Slack page. Capture and inspect screenshots of affected states, including completion, open panels, or other non-default states involved in the change. Exercise interactions as well as inspecting images; a screenshot alone does not prove behavior.
+- Investigate failing checks before retrying. Fix failures caused by the change, and report unrelated failures or unavailable verification honestly. Never weaken assertions, hide failures, or claim a pass from an unexecuted check.
+- Keep checks lightweight on this machine: use one browser-test worker, avoid concurrent heavy builds and browser runs, and clean up scratch files. Stop preview servers you start for verification; leave a server running only when the user asks to use it, and report its port.
