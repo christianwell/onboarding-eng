@@ -193,7 +193,7 @@ export function assetUrl(path: string) {
 export type SafetyReportPhase = (typeof safetyReportSteps)[number]
 
 export function resolveLessons(configured: LessonId[]) {
-  return lessonIds.filter((lesson) => configured.includes(lesson))
+  return [...new Set(configured)]
 }
 
 export interface ChannelSection {

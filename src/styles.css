@@ -1217,7 +1217,6 @@ button { color: inherit; }
 .success-box div { display: flex; flex-direction: column; gap: 2px; }
 .success-box strong { color: #f4f4f5; font-size: .9375rem; line-height: 1.5; }
 .success-box span { color: #d4d4d8; font-size: .875rem; line-height: 1.5; }
-.intro-meta { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; color: #d4d4d8; font-size: .875rem; }
 .guide-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; animation: hcFadeIn .3s ease-out .56s both; }
 .coach-intro .guide-actions { justify-content: flex-end; }
 .guide-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid #3f3f46; border-radius: var(--radius-lg); padding: 8px 14px; color: #f4f4f5; background: #27272a; font-size: .9375rem; font-weight: 700; line-height: 1.5; cursor: pointer; transition: background .18s; }
