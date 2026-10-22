@@ -462,7 +462,7 @@ test('builds and downloads a campaign config', async ({ page }) => {
   await expect(page.locator('.builder-preview pre')).not.toContainText('- threads')
   await expect(page.locator('.builder-preview pre')).not.toContainText('- reactions')
   const exported = parse(await page.locator('.builder-preview pre').innerText())
-  expect(exported.training.lessons).toEqual(['channels', 'messages', 'search', 'notifications', 'safety'])
+  expect(exported.training.lessons).toEqual(['messages', 'search', 'notifications', 'safety', 'channels'])
   expect(Object.keys(exported.copy.lessons)).toEqual(['channels'])
   await page.reload()
   await expect(page.getByLabel('Program name')).toHaveValue('Moonshot')
