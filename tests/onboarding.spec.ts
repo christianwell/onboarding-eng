@@ -383,6 +383,29 @@ test('fuzzy-searches conversations and completes typed mentions from the keyboar
   await expect(page.getByRole('heading', { level: 1, name: 'Christian', exact: true })).toBeVisible()
 })
 
+test('keeps people available after submitting a search', async ({ page }) => {
+  await page.goto('/program/slack')
+  await page.evaluate(() => localStorage.setItem('onboarding:slack', JSON.stringify({ completed: ['channels', 'threads'] })))
+  await page.reload()
+
+  for (const [query, name] of [['christi', 'Christian'], ['shroud', 'shroud'], ['@shroud', 'shroud']]) {
+    await page.getByRole('button', { name: /search hack club/i }).click()
+    const search = page.getByPlaceholder('Search messages, people, and channels')
+    await search.fill(query)
+    await search.press('Enter')
+    const person = page.getByRole('button', { name: `Open DM with ${name}`, exact: true })
+    await expect(person).toBeVisible()
+    await expectTargetClearOfGuide(page, person)
+    if (query === 'shroud') {
+      await search.press('ArrowDown')
+      await search.press('Enter')
+    } else {
+      await person.click()
+    }
+    await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible()
+  }
+})
+
 test('completes the search lesson when hardware is opened from live suggestions', async ({ page }) => {
   await configureAllLessons(page, 'slack')
   await page.goto('/program/slack')
