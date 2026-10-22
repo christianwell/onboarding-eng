@@ -308,6 +308,13 @@ test('uses the configured help channel in general Slack search results', async (
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
   await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
+  await expect(page.getByLabel('Step 7 of 8')).toBeVisible()
+  await expect(page.getByPlaceholder('Search messages, people, and channels')).toHaveCount(0)
+
+  // Completing the mission closes search; reopen it to inspect the results.
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
+  await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
   await expect(page.locator('.message-search-results > button').filter({ hasText: 'help' })).toBeVisible()
   await expect(page.getByText('stardance-help', { exact: true })).toHaveCount(0)
 })
