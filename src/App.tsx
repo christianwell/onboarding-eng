@@ -1414,7 +1414,6 @@ function App() {
         {!introComplete ? <div className="lesson-card guide-intro">
           <h2><span>👋</span>Let’s get you settled in</h2>
           <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! Practice here first; then Hack Club Auth will create your account and add your starter channels.</p>
-          <p className="intro-meta"><Clock3 size={13} /> About 5 minutes</p>
         </div> : <div className="lesson-card">
           <p className="lesson-eyebrow">{activeCopy!.eyebrow}</p>
           <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>

@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { parse, stringify } from 'yaml'
 
-async function configureAllLessons(page: Page) {
-  await page.route('**/programs/stardance/config.yaml', async (route) => {
+async function configureAllLessons(page: Page, program = 'stardance') {
+  await page.route(`**/programs/${program}/config.yaml`, async (route) => {
     const response = await route.fetch()
     const config = parse(await response.text())
     config.training.lessons = ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions', 'search', 'notifications', 'safety']
@@ -285,8 +285,18 @@ test('loads the general Hack Club Slack preset', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'news-wire', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /let’s get started/i }).click()
   await page.getByRole('button', { name: 'slack-guide', exact: true }).click()
-  await expect(page.locator('.coach')).toHaveClass(/coach-messages/)
+  await expect(page.locator('.coach')).toHaveClass(/coach-threads/)
+  await expect(page.getByLabel('Step 2 of 5')).toBeVisible()
   await expect(page.getByLabel('Message lounge')).toBeVisible()
+  await page.getByRole('button', { name: /2 replies/i }).click()
+  await page.getByPlaceholder('Reply to Nova…').fill('Hello!')
+  await page.getByRole('button', { name: 'Send reply', exact: true }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-dms/)
+  await expect(page.getByLabel('Step 3 of 5')).toBeVisible()
+  await page.evaluate(() => localStorage.setItem('onboarding:slack', JSON.stringify({ completed: ['channels', 'threads', 'dms'] })))
+  await page.reload()
+  await expect(page.locator('.coach')).toHaveClass(/coach-safety/)
+  await expect(page.getByLabel('Step 4 of 5')).toBeVisible()
 })
 
 test('redirects unknown program and error routes to Hack Club', async ({ page }) => {
@@ -300,6 +310,7 @@ test('redirects unknown program and error routes to Hack Club', async ({ page })
 })
 
 test('uses the configured help channel in general Slack search results', async ({ page }) => {
+  await configureAllLessons(page, 'slack')
   await page.goto('/program/slack')
   await page.evaluate(() => localStorage.setItem('onboarding:slack', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions'] })))
   await page.reload()
@@ -308,7 +319,7 @@ test('uses the configured help channel in general Slack search results', async (
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
   await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
-  await expect(page.getByLabel('Step 7 of 8')).toBeVisible()
+  await expect(page.getByLabel('Step 8 of 10')).toBeVisible()
   await expect(page.getByPlaceholder('Search messages, people, and channels')).toHaveCount(0)
 
   // Completing the mission closes search; reopen it to inspect the results.
@@ -373,6 +384,7 @@ test('fuzzy-searches conversations and completes typed mentions from the keyboar
 })
 
 test('completes the search lesson when hardware is opened from live suggestions', async ({ page }) => {
+  await configureAllLessons(page, 'slack')
   await page.goto('/program/slack')
   await page.evaluate(() => localStorage.setItem('onboarding:slack', JSON.stringify({ completed: ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions'] })))
   await page.reload()
@@ -383,7 +395,7 @@ test('completes the search lesson when hardware is opened from live suggestions'
   await page.getByRole('button', { name: /hardware channel/i }).click()
 
   await expect(page.getByRole('heading', { level: 2, name: /hardware/i })).toBeVisible()
-  await expect(page.locator('.coach')).toHaveClass(/coach-safety/)
+  await expect(page.locator('.coach')).toHaveClass(/coach-notifications/)
 })
 
 test('routes identity questions through its FAQ canvas', async ({ page }) => {

@@ -31,12 +31,12 @@ describe('program configuration', () => {
     expect(getDefaultChannels(validateProgram(config))).toEqual(['welcome', 'stardance', 'stardance-help'])
   })
 
-  it('includes only configured lessons in guide order', () => {
+  it('preserves configured lesson order without duplicates', () => {
     expect(validateProgram(structuredClone(config)).training.lessons).toEqual(['channels', 'messages'])
     expect(validateProgram({
       ...structuredClone(config),
-      training: { ...config.training, lessons: ['threads', 'dms', 'pings', 'messages'] },
-    }).training.lessons).toEqual(['messages', 'pings', 'dms', 'threads'])
+      training: { ...config.training, lessons: ['channels', 'threads', 'dms', 'threads', 'safety'] },
+    }).training.lessons).toEqual(['channels', 'threads', 'dms', 'safety'])
   })
 
   it('rejects unknown lesson IDs', () => {
