@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, SyntheticEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -332,6 +332,7 @@ function App() {
   const [introComplete, setIntroComplete] = useState(false)
   const [lessonIndex, setLessonIndex] = useState(0)
   const [completed, setCompleted] = useState<LessonId[]>([])
+  const [pendingAdvance, setPendingAdvance] = useState<LessonId | null>(null)
   const [channel, setChannel] = useState('welcome-to-hack-club')
   const [joinedChannels, setJoinedChannels] = useState<string[]>([])
   const [channelView, setChannelView] = useState<ChannelView>('messages')
@@ -406,6 +407,7 @@ function App() {
         const firstIncomplete = config.training.lessons.findIndex((lesson) => !currentLessons.includes(lesson))
         setCompleted(currentLessons)
         setLessonIndex(firstIncomplete === -1 ? config.training.lessons.length - 1 : firstIncomplete)
+        if (firstIncomplete === -1) setFinished(true)
         if (currentLessons.length > 0) {
           trackEvent('Onboarding Resumed', {
             program: config.program.slug,
@@ -808,6 +810,7 @@ function App() {
     localStorage.setItem(`onboarding:${config.program.slug}`, JSON.stringify({ completed: next }))
     fireMissionConfetti(config.program.color)
     trackLessonCompleted(lesson, config.program.slug, lessonIndex + 1, lessons.length)
+    setPendingAdvance(lesson)
   }
 
   const startOnboarding = () => {
@@ -1036,8 +1039,13 @@ function App() {
     }
   }
 
-  const goNext = () => {
-    if (!config || lessonIndex >= lessons.length - 1) return
+  const goNext = useCallback(() => {
+    setPendingAdvance(null)
+    if (!config) return
+    if (lessonIndex >= lessons.length - 1) {
+      if (allLessonsComplete) setFinished(true)
+      return
+    }
     if (activeLesson === 'channels') {
       setChannel(config.training.practice_channel)
       setMessages(makeChannelMessages(config, config.training.practice_channel))
@@ -1059,7 +1067,12 @@ function App() {
     setMentionMenuOpen(false)
     setSelectedMention(null)
     window.setTimeout(() => composerRef.current?.focus(), 100)
-  }
+  }, [activeLesson, allLessonsComplete, config, lessonIndex, lessons.length])
+
+  useEffect(() => {
+    if (!pendingAdvance || pendingAdvance !== activeLesson || !introComplete || finished) return
+    goNext()
+  }, [activeLesson, finished, goNext, introComplete, pendingAdvance])
 
   const channelPurpose = useMemo(() => {
     if (directMessage) return `A private conversation with ${directMessage}.`
@@ -1409,15 +1422,11 @@ function App() {
           {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
           {!isActiveComplete && <details><summary>Need a hint?</summary><p>{activeCopy!.hint}</p></details>}
           {reportPhase && !isActiveComplete && <a className="conduct-link" href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>}
-          {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong>{allLessonsComplete && <span>Everything’s complete. Finish when you’re ready.</span>}</div></div>}
+          {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong></div></div>}
         </div>}
-        <div className="guide-actions">
-          {!introComplete ? <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button> : <>
-              {lessonIndex > 0 ? <button className="guide-ghost" onClick={() => setLessonIndex((value) => value - 1)}><ChevronLeft size={16} /> Back</button> : <span aria-hidden="true" />}
-              {isActiveComplete && !allLessonsComplete && <button className="next-button" aria-label="Next mission" onClick={goNext}>Next <ChevronRight size={16} /></button>}
-              {isActiveComplete && allLessonsComplete && <button className="next-button" onClick={() => setFinished(true)}>Complete onboarding <ChevronRight size={16} /></button>}
-            </>}
-        </div>
+        {!introComplete && <div className="guide-actions">
+          <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button>
+        </div>}
       </motion.aside>
       </motion.div>
       </>}
