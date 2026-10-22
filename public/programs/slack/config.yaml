@@ -11,6 +11,9 @@ training:
   lessons:
     - channels
     - messages
+    - pings
+    - dms
+    - threads
     - search
     - safety
 

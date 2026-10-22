@@ -1,4 +1,14 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { parse, stringify } from 'yaml'
+
+async function configureAllLessons(page: Page) {
+  await page.route('**/programs/stardance/config.yaml', async (route) => {
+    const response = await route.fetch()
+    const config = parse(await response.text())
+    config.training.lessons = ['channels', 'messages', 'pings', 'dms', 'threads', 'reactions', 'search', 'notifications', 'safety']
+    await route.fulfill({ response, body: stringify(config) })
+  })
+}
 
 async function expectTargetClearOfGuide(page: Page, target: Locator) {
   await expect(target).toBeVisible()
@@ -13,23 +23,30 @@ async function expectTargetClearOfGuide(page: Page, target: Locator) {
   }).toBe(true)
 }
 
-test('keeps the desktop guide in place when a mission completes', async ({ page }) => {
+test('advances missions immediately without navigation buttons and restores progress', async ({ page }) => {
+  await page.clock.install()
   await page.goto('/program/stardance')
   await page.getByRole('button', { name: /let’s get started/i }).click()
   const guide = page.getByRole('dialog', { name: /onboarding guide/i })
   await expect(guide).toHaveClass(/coach-active/)
-  // Wait for the move from the welcome screen to the channel target to settle.
   await page.waitForTimeout(500)
-  const before = await guide.boundingBox()
-  expect(before).not.toBeNull()
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60_000))
 
+  // With timers paused, a delayed advance would stay on the completed mission.
   await page.getByRole('button', { name: 'stardance', exact: true }).click()
-  await expect(page.getByText('Mission complete!')).toBeVisible()
-  await page.waitForTimeout(500)
-  const after = await guide.boundingBox()
-  expect(after).not.toBeNull()
-  expect(after!.x).toBeCloseTo(before!.x, 0)
-  expect(after!.y).toBeCloseTo(before!.y, 0)
+  await expect(page.getByLabel('Step 2 of 6')).toBeVisible()
+  await expect(guide.getByRole('button')).toHaveCount(0)
+  await page.clock.runFor(1500)
+  await page.getByLabel('Message stardance').fill('Hello!')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.getByLabel('Step 3 of 6')).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Step 3 of 6')).toBeVisible()
+  await page.clock.runFor(1500)
+  await expect(page.getByLabel('Step 3 of 6')).toBeVisible()
+  await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'search', 'notifications', 'safety'] })))
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /congrats.*you’ve learned slack/i })).toBeVisible()
 })
 
 test('reveals the safety DM and keeps its highlight aligned when the sidebar scrolls', async ({ page }) => {
@@ -57,6 +74,7 @@ test('reveals the safety DM and keeps its highlight aligned when the sidebar scr
 
 test('returns to the calling website after all nine lessons', async ({ page }) => {
   test.setTimeout(90_000)
+  await configureAllLessons(page)
   await page.goto('/flow-tester')
   await page.getByLabel('Your name').fill('Ada')
   await page.getByLabel('What are you making?').fill('A constellation game')
@@ -72,12 +90,11 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await page.getByRole('button', { name: /let’s get started/i }).click()
 
   await page.getByRole('button', { name: 'stardance', exact: true }).click()
-  await expect(page.getByText('Mission complete!')).toBeVisible()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-messages/)
 
   await page.getByLabel('Message stardance').fill('Hey! I’m building a tiny game this summer 🚀')
   await page.getByRole('button', { name: 'Send message' }).click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-pings/)
 
   await page.getByLabel('Message stardance').fill('@Nova typed without choosing a person')
   await page.getByRole('button', { name: 'Send message' }).click()
@@ -87,7 +104,7 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await page.getByRole('option', { name: /Nova/i }).click()
   await page.getByLabel('Message stardance').fill('@Nova I would love to test the mobile version!')
   await page.getByRole('button', { name: 'Send message' }).click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-dms/)
 
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('Christian')
@@ -95,26 +112,25 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await expect(page.getByRole('heading', { level: 1, name: 'Christian', exact: true })).toBeVisible()
   await page.getByLabel('Message Christian').fill('Hey Christian! I’m excited to build a constellation game.')
   await page.getByRole('button', { name: 'Send message' }).click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-threads/)
 
   await page.getByRole('button', { name: /2 replies/i }).click()
   await page.getByPlaceholder('Reply to Nova…').fill('A different note for every star would be lovely!')
   await page.locator('.thread-composer .send-button').click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-reactions/)
 
   await page.getByRole('button', { name: /add a ⭐ reaction/i }).click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-search/)
 
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
   await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
-  await expect(page.getByText(/results? for “hardware help”/)).toBeVisible()
-  await page.locator('.message-search-results > button').filter({ hasText: 'hardware' }).click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-notifications/)
+  await expect(page.getByPlaceholder('Search messages, people, and channels')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Notification settings' }).click()
   await page.getByRole('button', { name: 'Mentions & DMs' }).click()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-safety/)
 
   await page.evaluate(() => {
     window.addEventListener('hackclub:onboarding-complete', (event) => {
@@ -131,10 +147,6 @@ test('returns to the calling website after all nine lessons', async ({ page }) =
   await page.getByRole('button', { name: /1 reply/i }).click()
   await expect(page.getByText(/Ready to send this report to FD/)).toBeVisible()
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
-  await expect(page.getByText('This report has been submitted anonymously.', { exact: false })).toBeVisible()
-  await expect(page.getByText('Only visible to you')).toBeVisible()
-  await expect(page.getByText('Mission complete!')).toBeVisible()
-  await page.getByRole('button', { name: /complete onboarding/i }).click()
   await expect(page.getByRole('heading', { name: /congrats.*you’ve learned slack/i })).toBeVisible()
   await expect(page.getByText('Step 10 of 10 · Complete')).toBeVisible()
   await expect(page.getByText(/sending you back to continue where you left off/i)).toBeVisible()
@@ -168,11 +180,13 @@ test('guides a mobile user from a channel through Slack Home', async ({ page }) 
   }).toBe(true)
   await page.getByRole('button', { name: 'stardance', exact: true }).click()
 
-  await expect(page.getByText('Mission complete!')).toBeVisible()
+  await expect(page.locator('.coach')).toHaveClass(/coach-messages/)
+  await expectTargetClearOfGuide(page, page.locator('.target-composer'))
 })
 
 test('keeps short mobile lesson targets clear of the guide', async ({ page }) => {
   test.setTimeout(45_000)
+  await configureAllLessons(page)
   await page.setViewportSize({ width: 340, height: 510 })
   await page.goto('/program/stardance')
 
@@ -226,6 +240,7 @@ test('keeps the highlighted search bar centered during the search lesson', async
 })
 
 test('guides a mobile user into Christian’s DMs', async ({ page }) => {
+  await configureAllLessons(page)
   await page.setViewportSize({ width: 375, height: 667 })
   await page.goto('/program/stardance')
   await page.evaluate(() => localStorage.setItem('onboarding:stardance', JSON.stringify({ completed: ['channels', 'messages', 'pings'] })))
@@ -239,7 +254,8 @@ test('guides a mobile user into Christian’s DMs', async ({ page }) => {
   await page.getByLabel('Message Christian').fill('Hey Christian! Nice to meet you.')
   await page.getByRole('button', { name: 'Send message' }).click()
 
-  await expect(page.getByText('Mission complete!')).toBeVisible()
+  await expect(page.locator('.coach')).toHaveClass(/coach-threads/)
+  await expect(page.getByLabel('Message stardance')).toBeVisible()
 })
 
 for (const referrer of ['https://slack.com/', 'https://hackclub.slack.com/archives/example', 'https://app.slack.com/']) {
@@ -269,8 +285,7 @@ test('loads the general Hack Club Slack preset', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'news-wire', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /let’s get started/i }).click()
   await page.getByRole('button', { name: 'slack-guide', exact: true }).click()
-  await expect(page.getByText('Mission complete!')).toBeVisible()
-  await page.getByRole('button', { name: /next mission/i }).click()
+  await expect(page.locator('.coach')).toHaveClass(/coach-messages/)
   await expect(page.getByLabel('Message lounge')).toBeVisible()
 })
 
@@ -290,6 +305,13 @@ test('uses the configured help channel in general Slack search results', async (
   await page.reload()
 
   await expect(page.getByRole('heading', { name: /search before asking again/i })).toBeVisible()
+  await page.getByRole('button', { name: /search hack club/i }).click()
+  await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
+  await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
+  await expect(page.getByLabel('Step 7 of 8')).toBeVisible()
+  await expect(page.getByPlaceholder('Search messages, people, and channels')).toHaveCount(0)
+
+  // Completing the mission closes search; reopen it to inspect the results.
   await page.getByRole('button', { name: /search hack club/i }).click()
   await page.getByPlaceholder('Search messages, people, and channels').fill('hardware help')
   await page.getByPlaceholder('Search messages, people, and channels').press('Enter')
@@ -361,7 +383,7 @@ test('completes the search lesson when hardware is opened from live suggestions'
   await page.getByRole('button', { name: /hardware channel/i }).click()
 
   await expect(page.getByRole('heading', { level: 2, name: /hardware/i })).toBeVisible()
-  await expect(page.getByText('Mission complete!')).toBeVisible()
+  await expect(page.locator('.coach')).toHaveClass(/coach-safety/)
 })
 
 test('routes identity questions through its FAQ canvas', async ({ page }) => {
@@ -394,6 +416,8 @@ test('builds and downloads a campaign config', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'My Program' })).toBeVisible()
   await expect(page.getByText('Ready to export')).toBeVisible()
+  expect(parse(await page.locator('.builder-preview pre').innerText()).copy).toBeUndefined()
+  await expect(page.getByText('Included in every campaign')).toHaveCount(0)
   await page.getByLabel('Program name').fill('Moonshot')
   await expect(page.getByLabel('URL slug')).toHaveValue('moonshot')
   await expect(page.locator('.builder-preview pre')).toContainText('slug: moonshot')
@@ -401,6 +425,13 @@ test('builds and downloads a campaign config', async ({ page }) => {
   await expect(page.locator('.builder-preview pre')).toContainText('read_only:')
   await page.getByLabel('Title').fill('Channels are organized by topic')
   await expect(page.locator('.builder-preview pre')).toContainText('Channels are organized by topic')
+  const channelsLesson = page.locator('.lesson-picker').getByRole('button', { name: /^Channels/ })
+  await channelsLesson.click()
+  expect(parse(await page.locator('.builder-preview pre').innerText()).copy).toBeUndefined()
+  await channelsLesson.click()
+  expect(parse(await page.locator('.builder-preview pre').innerText()).copy.lessons.channels.title).toBe('Channels are organized by topic')
+  await page.getByRole('combobox', { name: /^Lesson/ }).selectOption('pings')
+  await page.getByLabel('Hint', { exact: true }).fill('Use the @ button to choose Nova, then send them a helpful message.')
 
   await page.getByRole('button', { name: 'Support', exact: true }).click()
   await page.getByLabel('Bot name').fill('Program Support')
@@ -411,9 +442,20 @@ test('builds and downloads a campaign config', async ({ page }) => {
   await expect(page.locator('.builder-preview pre')).toContainText('bot_name: Program Support')
   await expect(page.locator('.builder-preview pre')).toContainText('faq_title: Moonshot FAQ')
   await expect(page.getByText('public/programs/moonshot/logo.svg')).toBeVisible()
-  await expect(page.getByText('Pings · Direct messages · Threads · Reactions')).toBeVisible()
+  for (const label of ['Pings', 'Direct messages', 'Threads', 'Reactions']) {
+    await page.locator('.lesson-picker').getByRole('button', { name: new RegExp(`^${label}`) }).click()
+  }
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- pings')
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- dms')
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- threads')
+  await expect(page.locator('.builder-preview pre')).not.toContainText('- reactions')
+  const exported = parse(await page.locator('.builder-preview pre').innerText())
+  expect(exported.training.lessons).toEqual(['channels', 'messages', 'search', 'notifications', 'safety'])
+  expect(Object.keys(exported.copy.lessons)).toEqual(['channels'])
   await page.reload()
   await expect(page.getByLabel('Program name')).toHaveValue('Moonshot')
+  expect(parse(await page.locator('.builder-preview pre').innerText())).toEqual(exported)
+  await expect(page.locator('.lesson-picker').getByRole('button', { name: /^Pings/ })).toHaveAttribute('aria-pressed', 'false')
 
   await page.getByLabel('Hack Club Auth URL').fill('javascript:alert(1)')
   await expect(page.getByText(/must be an HTTP or HTTPS URL/i)).toBeVisible()

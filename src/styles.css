@@ -1223,7 +1223,6 @@ button { color: inherit; }
 .guide-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid #3f3f46; border-radius: var(--radius-lg); padding: 8px 14px; color: #f4f4f5; background: #27272a; font-size: .9375rem; font-weight: 700; line-height: 1.5; cursor: pointer; transition: background .18s; }
 .guide-actions button svg { flex: 0 0 auto; }
 .guide-actions button:hover { color: #fafafa; background: #3f3f46; }
-.guide-actions .guide-ghost { padding: 8px 10px 8px 8px; border-color: transparent; background: transparent; }
 .next-button { color: #18181b; border-color: #fafafa; background: #fafafa; }
 .next-button:hover { color: #18181b; background: #e4e4e7; }
 .safety-quiz > p { margin: 0 0 9px; color: #e8e9f0; font-size: 11.5px; line-height: 1.4; font-weight: 600; }
@@ -1529,8 +1528,6 @@ button { color: inherit; }
   .coach-safety { max-height: 250px; }
   .coach-report-submit { max-height: 210px; padding-block: 9px; }
   .coach-report-submit .coach-brand { display: none; }
-  .coach-report-submit .guide-actions { margin-top: 6px; }
-  .coach-report-submit .guide-actions button { min-height: 36px; }
   .sidebar-open .coach-active { max-height: 194px; }
   .coach-brand { margin-bottom: 5px; }
   .coach .progress-track { margin-bottom: 10px; }

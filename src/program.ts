@@ -192,10 +192,8 @@ export function assetUrl(path: string) {
 
 export type SafetyReportPhase = (typeof safetyReportSteps)[number]
 
-export const internalLessonIds = ['pings', 'dms', 'threads', 'reactions'] as const satisfies readonly LessonId[]
-
 export function resolveLessons(configured: LessonId[]) {
-  return lessonIds.filter((lesson) => configured.includes(lesson) || internalLessonIds.some((internal) => internal === lesson))
+  return lessonIds.filter((lesson) => configured.includes(lesson))
 }
 
 export interface ChannelSection {
