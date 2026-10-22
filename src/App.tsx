@@ -1023,7 +1023,7 @@ function App() {
       setSearchOpen(false)
       return
     }
-    if (searched || !searchSuggestions.length) return
+    if (!searchSuggestions.length) return
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       const direction = event.key === 'ArrowDown' ? 1 : -1
@@ -1497,17 +1497,19 @@ function App() {
       </aside>}
 
       {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
-        <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false); setSearchActiveIndex(-1) }} onKeyDown={handleSearchKeyDown} placeholder="Search messages, people, and channels" aria-autocomplete="list" aria-controls={searchQuery.trim() && !searched ? 'search-suggestions' : undefined} aria-expanded={Boolean(searchQuery.trim() && !searched)} autoFocus /><button type="button" onClick={() => setSearchOpen(false)}><X /></button></form>
-        {!searched && searchQuery.trim() ? <div id="search-suggestions" className="search-suggestions" role="listbox" aria-label="Search suggestions">
+        <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false); setSearchActiveIndex(-1) }} onKeyDown={handleSearchKeyDown} placeholder="Search messages, people, and channels" aria-autocomplete="list" aria-controls={searchQuery.trim() ? 'search-suggestions' : undefined} aria-expanded={Boolean(searchQuery.trim())} autoFocus /><button type="button" onClick={() => setSearchOpen(false)}><X /></button></form>
+        {searchQuery.trim() && (!searched || searchSuggestions.length > 0) ? <div id="search-suggestions" className="search-suggestions" role="listbox" aria-label="Search suggestions">
           {searchSuggestions.some((suggestion) => suggestion.type === 'channel') && <p>Channels</p>}
           {searchSuggestions.map((suggestion, index) => suggestion.type === 'channel' ? <button key={`channel-${suggestion.name}`} type="button" className={index === searchActiveIndex ? 'active' : ''} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="suggestion-icon"><Hash /></span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.name}</strong><small>Channel</small></span><ChevronRight /></button> : null)}
           {searchSuggestions.some((suggestion) => suggestion.type === 'member') && <p>People</p>}
           {searchSuggestions.map((suggestion, index) => suggestion.type === 'member' ? <button key={`member-${suggestion.member.username}`} type="button" className={`${index === searchActiveIndex ? 'active ' : ''}${suggestion.member.name === searchSpotlightMember ? 'dm-search-result' : ''}`} aria-label={`Open DM with ${suggestion.member.name}`} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="search-avatar" style={{ background: suggestion.member.color }}>{suggestion.member.name[0]}{suggestion.member.avatar && <img src={suggestion.member.avatar} alt="" onError={hideBrokenImage} />}</span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.member.name}</strong><small>@{suggestion.member.username} · Direct message</small></span><ChevronRight /></button> : null)}
-          <button type="submit" className="search-all" onClick={() => { setSearched(true); setSearchActiveIndex(-1); completeSearchIfMatched() }}><span className="suggestion-icon"><Search /></span><span><strong>Search for “{searchQuery}”</strong><small>Messages, files, and more</small></span><kbd>Enter</kbd></button>
-        </div> : !searched ? searchSpotlightMember
+          {!searched && <button type="submit" className="search-all" onClick={() => { setSearched(true); setSearchActiveIndex(-1); completeSearchIfMatched() }}><span className="suggestion-icon"><Search /></span><span><strong>Search for “{searchQuery}”</strong><small>Messages, files, and more</small></span><kbd>Enter</kbd></button>}
+        </div> : null}
+        {!searched && !searchQuery.trim() ? searchSpotlightMember
           ? <div className="search-empty"><UserRound /><h3>Find {searchSpotlightMember}</h3><p>Type <button onClick={() => setSearchQuery(searchSpotlightMember)}>{searchSpotlightMember}</button> to find their Hack Club account.</p></div>
           : <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><div><kbd>Enter</kbd> to search</div></div>
-        : <div className="search-results message-search-results">
+        : null}
+        {searched && <div className="search-results message-search-results">
             <div className="search-results-header"><div><strong>{searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}</strong><span> for “{searchQuery}”</span></div><button type="button">Most relevant <ChevronDown /></button></div>
             <div className="search-filter-row"><span>Messages</span>{parsedSearch.scope && <span><Hash size={12} /> In: {parsedSearch.scope}</span>}<button type="button">From</button><button type="button">After</button></div>
             {searchResults.map((result) => <button key={`${result.channel}-${result.message.id}`} onClick={() => { joinChannel(result.channel, true); setSearchOpen(false) }}>
