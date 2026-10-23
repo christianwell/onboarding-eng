@@ -26,8 +26,8 @@ export interface LessonCopy {
 export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   channels: {
     eyebrow: 'find a channel that matchs you',
-    title: 'Channels are normaly specific on one topic',
-    body: 'channels mustly have a topic, remeber to stay thread !',
+    title: 'Slack uses channels',
+    body: 'The Hack Club Slack is split into channels. Each channel is specific to a different topic, just like the channels on a TV.',
     task: 'Open the sidebar, and then choose #stardance.',
     hint: 'look in the channel list',
   },
@@ -41,7 +41,7 @@ export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   threads: {
     eyebrow: 'Keep it organized',
     title: 'Replies belong in threads',
-    body: 'A thread keeps a side conversation attached to its original message, so the channel stays easy to scan. Replies in a thread should stay within the topic of the original message.',
+    body: 'A thread keeps responses attached to the original message, so the channel stays easy to scan.',
     task: 'Open Nova’s thread and send a reply.',
     hint: 'Click “2 replies” below Nova’s message.',
   },
@@ -83,7 +83,7 @@ export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   safety: {
     eyebrow: 'Keep Hack Club kind',
     title: 'Know what to do when something feels wrong',
-    body: 'Hack Club holds everyone to a high standard. Don’t engage with harassment or share private information. The moderation team can help.',
+    body: 'Hack Club holds everyone to a high standard. Don’t engage with harassment or share private information.',
     task: 'Choose the safest response to finish your training.',
     hint: 'Reports to @shroud go to Hack Club’s Fire Department moderation team.',
   },
@@ -128,12 +128,12 @@ export const safetyReportSteps = ['notice', 'find', 'send', 'submit'] as const
 export const defaultSafetyReport: SafetyReportConfig = {
   spam: {
     from: {
-      name: 'Sam Altman',
-      username: 'sam-altman',
+      name: 'Jan adultman',
+      username: 'jan-adultman',
       color: '#8a8f98',
-      avatar: '/people/spammer.webp',
+      avatar: 'J',
     },
-    message: 'Hey, please consider investing in my AI company!',
+    message: "You're stinky and ugly!",
     time: '10:12 AM',
   },
   moderator: {
@@ -158,16 +158,16 @@ export const defaultSafetyReport: SafetyReportConfig = {
     notice: {
       eyebrow: 'Keep Hack Club kind',
       title: 'Oh, looks like you got a DM!',
-      body: 'Hack Club holds everyone to a high standard. Don’t engage with harassment or share private information. The moderation team can help.',
+      body: "Let’s check it out!",
       task: 'Click on it!',
       hint: 'Check your sidebar.',
     },
     find: {
       eyebrow: 'Keep Hack Club kind',
-      title: 'Ads like this aren’t allowed on the Slack',
+      title: 'Messages like this aren’t allowed on the Slack',
       body: 'Let’s report it to the Fire Department, who are in charge of keeping the Slack a nice place.',
       task: 'Go to the search bar and type @shroud.',
-      hint: 'Reports to @shroud go to Hack Club’s Fire Department moderation team.',
+      hint: 'Reports to @shroud go to Hack Club’s moderation team, the Fire Department.',
     },
     send: {
       eyebrow: 'Keep Hack Club kind',
