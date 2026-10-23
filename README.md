@@ -33,7 +33,7 @@ The YAML has these sections:
   channels. Recommended channels are suggestions, not automatic memberships.
 - `copy` (optional): human-written lesson copy overrides. The builder exports
   only edited copy for enabled lessons; omitted lessons use the reviewed defaults.
-  Each override contains `eyebrow`, `title`, `body`, and `task`.
+  Each override contains `title`, `body`, and `task`.
 - `support` (optional): the support channel, bot acknowledgement, and FAQ. Omitted
   when support is disabled.
 - `completion`: the Auth URL, entry channel, and allowed return origins.

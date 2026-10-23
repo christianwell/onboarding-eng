@@ -481,7 +481,6 @@ function App() {
     ? reportPhase ? report!.steps[reportPhase] : config?.copy?.lessons?.[activeLesson] ?? defaultLessonCopy[activeLesson]
     : null
   const activeCopy = activeLesson && configuredLessonCopy ? {
-    eyebrow: resolveProgramCopy(configuredLessonCopy.eyebrow, config!),
     title: resolveProgramCopy(configuredLessonCopy.title, config!),
     body: resolveProgramCopy(configuredLessonCopy.body, config!),
     task: activeLesson === 'dms' && directMessage === 'Christian'
@@ -1412,7 +1411,6 @@ function App() {
                 <h2><span>👋</span>Let’s get you settled in</h2>
                 <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! This interactive guide will get you familiar with Slack.</p>
               </div> : <div className="lesson-card">
-                <p className="lesson-eyebrow">{activeCopy!.eyebrow}</p>
                 <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
                 <p className="lesson-body">{activeCopy!.body}</p>
                 {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
