@@ -487,9 +487,6 @@ function App() {
     task: activeLesson === 'dms' && directMessage === 'Christian'
       ? 'Send Christian a friendly hello in this DM.'
       : resolveProgramCopy(configuredLessonCopy.task, config!).replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
-    hint: activeLesson === 'dms' && directMessage === 'Christian'
-      ? 'Use the message box below, then press Enter or the send button.'
-      : resolveProgramCopy(configuredLessonCopy.hint, config!),
   } : null
   // Nothing is a spotlight target until the reader has started the tour.
   const targetLesson = introComplete && !isActiveComplete ? activeLesson : null
@@ -1419,7 +1416,6 @@ function App() {
                 <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
                 <p className="lesson-body">{activeCopy!.body}</p>
                 {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
-                {!isActiveComplete && <details><summary>Need a hint?</summary><p>{activeCopy!.hint}</p></details>}
                 {reportPhase && !isActiveComplete && <a className="conduct-link" href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>}
                 {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong></div></div>}
               </div>}
