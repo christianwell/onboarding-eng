@@ -19,7 +19,6 @@ export interface LessonCopy {
   title: string
   body: string
   task: string
-  hint: string
 }
 
 // Reviewed human-authored copy from PR #1. Program configs may override any lesson.
@@ -28,64 +27,55 @@ export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
     eyebrow: 'find a channel that matchs you',
     title: 'Slack uses channels',
     body: 'The Hack Club Slack is split into channels. Each channel is specific to a different topic, just like the channels on a TV.',
-    task: 'Open the sidebar, and then choose #stardance.',
-    hint: 'look in the channel list',
+    task: 'Open the sidebar, and then choose #stardance.'
   },
   messages: {
     eyebrow: 'Say hello',
     title: 'Send your first message',
     body: 'Messages in public channels can be seen by everyone there. Be specific, kind, and give people enough context to respond.',
     task: 'Introduce yourself in #stardance.',
-    hint: 'Try: “Hey! I\'m new here, what is this channel about?”',
   },
   threads: {
     eyebrow: 'Keep it organized',
     title: 'Replies belong in threads',
     body: 'A thread keeps responses attached to the original message, so the channel stays easy to scan.',
-    task: 'Open Nova’s thread and send a reply.',
-    hint: 'Click “2 replies” below Nova’s message.',
+    task: 'Open Nova’s thread and send a reply.'
   },
   reactions: {
     eyebrow: 'Respond quickly',
     title: 'Reactions say a lot without noise',
     body: 'Reactions are a great way to communicate without adding more messages, and the Hack Club slack has plenty of custom emojis to react with!',
     task: 'Add a ⭐ reaction to a project update.',
-    hint: 'Click the smile-plus button on Nova’s message.',
   },
   pings: {
     eyebrow: 'Ping with care',
     title: 'Ping only when necessary',
     body: 'Choosing someone from the @ menu sends them a notification. Ping a person when they need to see the message!',
     task: 'Use the @ button to choose Nova, then send them a helpful message.',
-    hint: 'Choose the @ button below the message box, then select Nova from the menu.',
   },
   dms: {
     eyebrow: 'Talk privately',
     title: 'Send Christian a direct message',
     body: 'DMs are private conversations between the people included. They’re useful for personal details or a quick one-to-one question.',
     task: 'Use Search Hack Club to find Christian and open their account.',
-    hint: 'Click the search bar at the top and type “Christian”.',
   },
   search: {
     eyebrow: 'Find anything',
     title: 'Search before asking again',
     body: 'The Slack has a lot of messages, a lot of them are answers to questions you may have, so you shouold always use the search feature to make sure your question hasn\'t been answered already.',
     task: 'Search for “hardware help”.',
-    hint: 'Use the search bar at the very top.',
   },
   notifications: {
     eyebrow: 'Customize your pings',
     title: 'Make notifications work for you',
     body: 'Busy channels move fast. Setting your notifications to “Mentions & DMs” keeps important pings while letting you catch up on channels when you choose!',
     task: 'Set notifications to “Mentions & DMs”.',
-    hint: 'Open the bell in the channel header.',
   },
   safety: {
     eyebrow: 'Keep Hack Club kind',
     title: 'Know what to do when something feels wrong',
     body: 'Hack Club holds everyone to a high standard. Don’t engage with harassment or share private information.',
     task: 'Choose the safest response to finish your training.',
-    hint: 'Reports to @shroud go to Hack Club’s Fire Department moderation team.',
   },
 }
 
@@ -160,28 +150,24 @@ export const defaultSafetyReport: SafetyReportConfig = {
       title: 'Oh, looks like you got a DM!',
       body: "Let’s check it out!",
       task: 'Click on it!',
-      hint: 'Check your sidebar.',
     },
     find: {
       eyebrow: 'Keep Hack Club kind',
       title: 'Messages like this aren’t allowed on the Slack',
       body: 'Let’s report it to the Fire Department, who are in charge of keeping the Slack a nice place.',
       task: 'Go to the search bar and type @shroud.',
-      hint: 'Reports to @shroud go to Hack Club’s moderation team, the Fire Department.',
     },
     send: {
       eyebrow: 'Keep Hack Club kind',
       title: 'Tell us what happened',
       body: 'Write who messaged you, what they said, and any other context you think is important. The more details you provide, the better!',
       task: 'Send @shroud your report.',
-      hint: 'Try “someone just sent me an advert in my DMs”',
     },
     submit: {
       eyebrow: 'Keep Hack Club kind',
       title: 'Anonymous, or with your name on it?',
       body: 'You can choose to include your username in the report, or keep it anonymous. Either way, the Fire Department will follow up with you in a thread on your DM.',
       task: 'Open the thread and hit Submit.',
-      hint: 'Ticking “Include my username” lets FD follow up knowing it was you. Leaving it unchecked keeps the report anonymous.',
     },
   },
 }
@@ -253,7 +239,7 @@ export function getCompletionUrl(config: ProgramConfig, currentUrl: string) {
   }
 }
 
-const lessonCopyFields: (keyof LessonCopy)[] = ['eyebrow', 'title', 'body', 'task', 'hint']
+const lessonCopyFields: (keyof LessonCopy)[] = ['eyebrow', 'title', 'body', 'task']
 
 function isLessonCopy(value: unknown): value is LessonCopy {
   const copy = value as LessonCopy | undefined
@@ -313,7 +299,7 @@ export function validateProgram(value: unknown): ProgramConfig {
   if (config.copy?.lessons) {
     for (const [lesson, copy] of Object.entries(config.copy.lessons)) {
       if (!lessonIds.includes(lesson as LessonId) || !isLessonCopy(copy)) {
-        throw new Error('Every lesson copy override needs eyebrow, title, body, task, and hint text')
+        throw new Error('Every lesson copy override needs eyebrow, title, body, and task text')
       }
     }
   }
