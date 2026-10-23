@@ -27,14 +27,12 @@ function FlowTester() {
   }
 
   const startOnboarding = () => {
-    localStorage.removeItem('onboarding:stardance')
     const returnTo = new URL(`${basePath}flow-tester?step=slack`, window.location.origin).toString()
     trackEvent('Flow Onboarding Started', { program: 'stardance' })
     window.location.assign(`${basePath}program/stardance?return_to=${encodeURIComponent(returnTo)}`)
   }
 
   const reset = () => {
-    localStorage.removeItem('onboarding:stardance')
     sessionStorage.removeItem('flow-tester:name')
     sessionStorage.removeItem('flow-tester:project')
     window.location.assign(`${basePath}flow-tester`)
