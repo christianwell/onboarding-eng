@@ -396,31 +396,6 @@ function App() {
     }).catch(() => window.location.replace('https://hackclub.com/'))
   }, [])
 
-  useEffect(() => {
-    if (!config) return
-    const saved = localStorage.getItem(`onboarding:${config.program.slug}`)
-    if (!saved) return
-    try {
-      const parsed = JSON.parse(saved) as { completed?: LessonId[] }
-      if (parsed.completed?.length) {
-        const currentLessons = config.training.lessons.filter((lesson) => parsed.completed?.includes(lesson))
-        const firstIncomplete = config.training.lessons.findIndex((lesson) => !currentLessons.includes(lesson))
-        setCompleted(currentLessons)
-        setLessonIndex(firstIncomplete === -1 ? config.training.lessons.length - 1 : firstIncomplete)
-        if (firstIncomplete === -1) setFinished(true)
-        if (currentLessons.length > 0) {
-          trackEvent('Onboarding Resumed', {
-            program: config.program.slug,
-            lessons_completed: String(currentLessons.length),
-          })
-          setIntroComplete(true)
-        }
-      }
-    } catch {
-      localStorage.removeItem(`onboarding:${config.program.slug}`)
-    }
-  }, [config])
-
   const lessons = config?.training.lessons ?? []
   const defaultChannels = config ? getDefaultChannels(config) : []
   const recommendedChannels = config?.channels.recommended ?? []
@@ -739,21 +714,6 @@ function App() {
     }
   }, [activeLesson, allComplete, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
 
-  // Cmd/Ctrl+Shift+R restarts the tour instead of resuming it. Clearing the
-  // saved progress before reloading means either path — our reload or the
-  // browser's own hard reload, which pages cannot cancel — lands on step one.
-  useEffect(() => {
-    if (!config) return
-    const restart = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.key.toLowerCase() !== 'r') return
-      event.preventDefault()
-      localStorage.removeItem(`onboarding:${config.program.slug}`)
-      window.location.reload()
-    }
-    window.addEventListener('keydown', restart)
-    return () => window.removeEventListener('keydown', restart)
-  }, [config])
-
   // Slack dismisses its header menus on an outside click or Escape.
   useEffect(() => {
     if (!notificationsOpen) return
@@ -803,7 +763,6 @@ function App() {
     if (activeLesson !== lesson || completed.includes(lesson) || !config) return
     const next = [...completed, lesson]
     setCompleted(next)
-    localStorage.setItem(`onboarding:${config.program.slug}`, JSON.stringify({ completed: next }))
     fireMissionConfetti(config.program.color)
     trackLessonCompleted(lesson, config.program.slug, lessonIndex + 1, lessons.length)
     setPendingAdvance(lesson)
