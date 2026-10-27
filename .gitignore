@@ -4,4 +4,3 @@ dist/
 .DS_Store
 .amp/
 test-results/
-playwright-report/

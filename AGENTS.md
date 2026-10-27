@@ -15,7 +15,7 @@
 - `src/program.ts`: program loading, configuration types, reviewed default lesson copy, and completion URLs. `public/programs/<slug>/config.yaml`: program-specific data and copy.
 - `src/FlowTester.tsx`: calling-site and return-flow demo. `src/ProgramBuilder.tsx`: program configuration builder. Each has its own stylesheet.
 - `src/analytics.ts`: analytics integration. Existing unit tests live beside source as `src/*.test.ts`; browser scenarios live in `tests/`.
-- Read `package.json` for current commands and `playwright.config.ts` for browser-test setup. Use `npm run dev -- --port 5173` for manual inspection; Playwright starts its own server on port 4173 when needed.
+- Read `package.json` for current commands. Use `npm run dev -- --port 5173` for manual inspection
 
 ## Product rules
 
@@ -40,7 +40,6 @@
 
 - Choose and run checks yourself based on the affected behavior. Run `npm run check` after code changes; it runs unit tests and the production build. Documentation-only changes need a diff review, not an app build.
 - For bug fixes, reproduce the failure before changing code when practical, then rerun the same scenario. Add or extend a regression test for observable behavior that existing tests do not cover; do not test private implementation details.
-- For interaction or layout changes, run relevant browser tests with `npx playwright test --workers=1 -g '<test name pattern>'`. Cover the affected step and its transitions; include short mobile screens when positioning or target visibility changes. Run the full suite only when the scope requires it.
 - Check the relevant lifecycle, not just the happy-path click: fresh entry versus resumed progress, reload/direct navigation, task completion and the next step, open/closed panels, and scroll/resize behavior as applicable. For shared engine changes, also inspect a second program config for accidental program-specific assumptions.
 - For visual UI changes, render at 1440×900 and compare with the saved Slack page. Capture and inspect screenshots of affected states, including completion, open panels, or other non-default states involved in the change. Exercise interactions as well as inspecting images; a screenshot alone does not prove behavior.
 - Investigate failing checks before retrying. Fix failures caused by the change, and report unrelated failures or unavailable verification honestly. Never weaken assertions, hide failures, or claim a pass from an unexecuted check.
