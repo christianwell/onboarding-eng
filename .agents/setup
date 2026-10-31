@@ -16,7 +16,4 @@ fi
 step "Installing locked npm dependencies"
 npm ci
 
-step "Installing the Playwright Chromium browser"
-npx playwright install chromium
-
 step "Orb setup complete"

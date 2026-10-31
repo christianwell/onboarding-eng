@@ -119,15 +119,17 @@ function createConfig(draft: Draft): ProgramConfig {
       read_only: lines(draft.readOnlyChannels),
     },
     ...(Object.keys(lessonCopy).length ? { copy: { lessons: lessonCopy } } : {}),
-    ...(draft.supportEnabled ? { support: {
-      channel: draft.supportChannel,
-      discussion_channel: draft.discussionChannel,
-      bot_name: draft.supportBotName.trim(),
-      acknowledgement: draft.supportAcknowledgement.trim(),
-      faq_title: draft.supportFaqTitle.trim(),
-      faq_intro: draft.supportFaqIntro.trim(),
-      faq: faqItems(draft.supportFaqItems),
-    } } : {}),
+    ...(draft.supportEnabled ? {
+      support: {
+        channel: draft.supportChannel,
+        discussion_channel: draft.discussionChannel,
+        bot_name: draft.supportBotName.trim(),
+        acknowledgement: draft.supportAcknowledgement.trim(),
+        faq_title: draft.supportFaqTitle.trim(),
+        faq_intro: draft.supportFaqIntro.trim(),
+        faq: faqItems(draft.supportFaqItems),
+      }
+    } : {}),
     completion: {
       auth_url: draft.authUrl.trim(),
       entry_channel: draft.entryChannel,
@@ -323,11 +325,9 @@ function ProgramBuilder() {
           <header><span>4</span><div><h2>Lesson copy</h2></div></header>
           <div className="builder-grid">
             <label className="wide">Lesson<select value={copyLesson} onChange={(event) => setCopyLesson(event.target.value as LessonId)}>{Object.keys(defaultLessonCopy).filter((lesson) => lesson !== 'safety').map((lesson) => <option key={lesson} value={lesson}>{lesson}</option>)}</select></label>
-            <label>Eyebrow<input value={draft.lessonCopy[copyLesson].eyebrow} onChange={updateLessonCopy('eyebrow')} /></label>
             <label>Title<input value={draft.lessonCopy[copyLesson].title} onChange={updateLessonCopy('title')} /></label>
             <label className="wide">Body<textarea rows={4} value={draft.lessonCopy[copyLesson].body} onChange={updateLessonCopy('body')} /></label>
             <label className="wide">Task<input value={draft.lessonCopy[copyLesson].task} onChange={updateLessonCopy('task')} /></label>
-            <label className="wide">Hint<input value={draft.lessonCopy[copyLesson].hint} onChange={updateLessonCopy('hint')} /></label>
           </div>
           <p className="template-help"><code>{'{{program}}'}</code> <code>{'{{channel_target}}'}</code> <code>{'{{practice_channel}}'}</code></p>
         </section>

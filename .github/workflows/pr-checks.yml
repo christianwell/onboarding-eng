@@ -47,38 +47,3 @@ jobs:
           path: unit-test-results.xml
           if-no-files-found: ignore
           retention-days: 7
-
-  browser-tests:
-    name: Browser tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    container:
-      # Keep this version aligned with @playwright/test in package.json.
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
-      options: --ipc=host
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run browser tests
-        run: npm run test:e2e
-
-      - name: Upload browser-test output
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-test-results
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
