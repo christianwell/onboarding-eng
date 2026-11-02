@@ -44,3 +44,9 @@
 - For visual UI changes, render at 1440×900 and compare with the saved Slack page. Capture and inspect screenshots of affected states, including completion, open panels, or other non-default states involved in the change. Exercise interactions as well as inspecting images; a screenshot alone does not prove behavior.
 - Investigate failing checks before retrying. Fix failures caused by the change, and report unrelated failures or unavailable verification honestly. Never weaken assertions, hide failures, or claim a pass from an unexecuted check.
 - Keep checks lightweight on this machine: use one browser-test worker, avoid concurrent heavy builds and browser runs, and clean up scratch files. Stop preview servers you start for verification; leave a server running only when the user asks to use it, and report its port.
+
+## Pull requests
+- Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
+-  Changes need before/after images. Motion or timing needs a short video.
+- Upload PR evidence to GitHub. Never commit PR-only screenshots or assets such as `.github/pr-assets/`.
+
