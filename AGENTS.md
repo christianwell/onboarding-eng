@@ -7,7 +7,7 @@
 - Study unfamiliar APIs or behavior as needed using existing repository patterns, dependency documentation, and authoritative sources. Keep research focused on the current task, then apply what you learned.
 - Make small, reversible decisions independently. Ask only when essential information is unavailable, requirements conflict, or an action needs permission. Do not invent product copy to fill gaps.
 - Make the smallest complete fix, inspect the final diff, and leave unrelated changes alone. Keep the user informed at meaningful milestones rather than asking approval for routine local work.
-- Do not push, merge, deploy, or change shared systems without authorization for that action. Report what was changed, what was actually verified, and what remains local or undelivered.
+- Do not push, merge, deploy, or change shared systems without authorization for that action. Report what was changed, what was actually verified, and what remains local or undelivered. (check ## Pull requests)
 
 ## Where to look
 
@@ -25,10 +25,10 @@
 
 ## Slack UI reference
 
-- The visual source of truth is `/home/christian/lounge (Channel) - Hack Club - 13 new items - Slack.html` and its companion `/home/christian/lounge (Channel) - Hack Club - 13 new items - Slack_files` directory.
 - Match the reference's layout, spacing, colors, type scale, controls, and responsive behavior. Keep program data and simulated messages configurable.
 - Never copy private Slack messages, member names, avatars, tokens, or other user data from the saved page into this repository.
-
+- If you need to change ui request the user gives access to a way of accessing Slack best chosen by the AI agent
+- 
 ## Orchard deployment
 
 - Orchard builds the root `Dockerfile`, serves the app on port 80, and checks `/health.html`.
