@@ -203,7 +203,16 @@ export function getDefaultChannels(config: ProgramConfig) {
 export function getProgramSlug(pathname: string, basePath = '/') {
   const relativePath = pathname.startsWith(basePath) ? pathname.slice(basePath.length) : pathname
   const parts = relativePath.split('/').filter(Boolean)
-  return parts.at(-1) || 'slack'
+  const stepIndex = parts.indexOf('step')
+  return (stepIndex < 0 ? parts : parts.slice(0, stepIndex)).at(-1) || 'slack'
+}
+
+export function getProgramStep(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean)
+  const stepIndex = parts.indexOf('step')
+  if (stepIndex < 0) return null
+  if (parts.length !== stepIndex + 2) throw new Error('Invalid step URL')
+  return parts[stepIndex + 1]
 }
 
 export function getCompletionUrl(config: ProgramConfig, currentUrl: string) {
