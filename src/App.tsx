@@ -41,7 +41,7 @@ import confetti from 'canvas-confetti'
 import NumberFlow from '@number-flow/react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { trackEvent, trackLessonCompleted } from './analytics'
-import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
+import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
 type Message = {
   id: number
@@ -388,10 +388,17 @@ function App() {
 
   useEffect(() => {
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
+      const step = getProgramStep(window.location.pathname)
+      if (step !== null) {
+        if (!lessonIds.includes(step as LessonId)) throw new Error('Unknown program step')
+        loaded.training.lessons = [step as LessonId]
+        setIntroComplete(true)
+      }
+      const initialChannel = step && step !== 'channels' ? loaded.training.practice_channel : loaded.completion.entry_channel
       setConfig(loaded)
-      setChannel(loaded.completion.entry_channel)
+      setChannel(initialChannel)
       setJoinedChannels(getDefaultChannels(loaded))
-      setMessages(makeChannelMessages(loaded, loaded.completion.entry_channel))
+      setMessages(makeChannelMessages(loaded, initialChannel))
       document.title = `${loaded.program.name} · Slack Flight School`
     }).catch(() => window.location.replace('https://hackclub.com/'))
   }, [])

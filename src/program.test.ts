@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCompletionUrl, getDefaultChannels, getProgramSlug, validateProgram } from './program'
+import { getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, lessonIds, validateProgram } from './program'
 
 const config = {
   program: { name: 'Stardance', slug: 'stardance', color: '#6c5ce7', logo: '/logo.svg', tagline: 'Build!' },
@@ -24,6 +24,19 @@ describe('program configuration', () => {
     expect(getProgramSlug('/program/stardance')).toBe('stardance')
     expect(getProgramSlug('/onboarding-eng/program/slack', '/onboarding-eng/')).toBe('slack')
     expect(getProgramSlug('/onboarding-eng/', '/onboarding-eng/')).toBe('slack')
+  })
+
+  it('resolves shareable lesson URLs without treating the step as a program', () => {
+    for (const lesson of lessonIds) {
+      expect(getProgramSlug(`/step/${lesson}`)).toBe('slack')
+      expect(getProgramStep(`/step/${lesson}`)).toBe(lesson)
+    }
+    expect(getProgramSlug('/program/stardance/step/messages')).toBe('stardance')
+    expect(getProgramSlug('/onboarding-eng/step/threads', '/onboarding-eng/')).toBe('slack')
+    expect(getProgramStep('/program/stardance/step/messages/')).toBe('messages')
+    expect(getProgramStep('/slack')).toBeNull()
+    expect(() => getProgramStep('/step/')).toThrow('Invalid step URL')
+    expect(() => getProgramStep('/step/threads/extra')).toThrow('Invalid step URL')
   })
 
   it('accepts known lesson IDs', () => {
