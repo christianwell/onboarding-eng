@@ -51,11 +51,16 @@
 - Choose and run checks yourself based on the affected behavior. Run `npm run check` after code changes; it runs unit tests and the production build. Documentation-only changes need a diff review, not an app build.
 - For bug fixes, reproduce the failure before changing code when practical, then rerun the same scenario. Add or extend a regression test for observable behavior that existing tests do not cover; do not test private implementation details.
 - Check the relevant lifecycle, not just the happy-path click: fresh entry versus resumed progress, reload/direct navigation, task completion and the next step, open/closed panels, and scroll/resize behavior as applicable. For shared engine changes, also inspect a second program config for accidental program-specific assumptions.
+- Follow the affected code into related routes, callers, and alternate flows. Test plausible failure paths, including back/cancel, empty or invalid input, and switching channels or programs where relevant. Fix regressions caused by the change; report unrelated bugs separately. State which paths were tested and which remain unverified.
 - For visual UI changes, render at 1440×900 and compare with the saved Slack page. Capture and inspect screenshots of affected states, including completion, open panels, or other non-default states involved in the change. Exercise interactions as well as inspecting images; a screenshot alone does not prove behavior.
 - Investigate failing checks before retrying. Fix failures caused by the change, and report unrelated failures or unavailable verification honestly. Never weaken assertions, hide failures, or claim a pass from an unexecuted check.
 - Keep checks lightweight on this machine: use one browser-test worker, avoid concurrent heavy builds and browser runs, and clean up scratch files. Stop preview servers you start for verification; leave a server running only when the user asks to use it, and report its port.
 
 ## Pull requests
-- Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
--  Changes need before/after images. Motion or timing needs a short video.
-- Upload PR evidence to GitHub. Never commit PR-only screenshots or assets such as `.github/pr-assets/`.
+
+- Briefly explain the problem, fix, and verification. For AI-assisted work, end with `AI assistance: <model> via <coding tool>.`
+- Verify the model from the current session’s usage records, status, or message metadata—not a global default or mode name. For example, Amp provides `amp threads usage <thread-id> --details`; Claude Code and Codex provide `/status`. Attribute the coding model, not title/image helpers; name multiple coding models if used. If session records are unavailable, write `AI assistance: <coding tool>; model unverified.` Never guess or expose credentials while checking.
+- UI changes need **Before** and **After** images; motion or timing changes also need a short video. Capture the same state, viewport, theme, and program before and after the edit. Include affected mobile and non-default states. Documentation-only changes need no images.
+- Use real app captures with synthetic data. Inspect them for visual defects and private information, and test interactions separately.
+- Keep PR evidence outside version control, in a temporary or Git-ignored directory of your choice. Upload it as GitHub attachments and embed it in the PR body; local paths and expiring links do not count. Never commit PR-only images or videos.
+- Check upload access early and request permission if needed. Keep the PR draft if evidence is blocked, and explain why. Verify attachments render before marking it ready. Preserve others’ edits when updating the PR body.
