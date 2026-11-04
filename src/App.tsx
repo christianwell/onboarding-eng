@@ -529,7 +529,9 @@ function App() {
     const positionGuide = (revealTarget = false) => {
       const isMobile = window.innerWidth <= 620
       const workspaceSearchSelector = isMobile ? '.mobile-home-search' : '.search-trigger'
-      const memberSearchSelector = () => spotlightMemberInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : workspaceSearchSelector
+      const memberSearchSelector = () => searchOpen
+        ? spotlightMemberInResults ? '.dm-search-result' : '.search-modal input'
+        : isMobile && !sidebarOpen ? '.mobile-channel-back' : workspaceSearchSelector
       const selector = !introComplete
         ? null
         : isMobile && activeLesson === 'channels'
@@ -572,7 +574,11 @@ function App() {
       setSpotlightInPanel(ringInPanel)
 
       if (isMobile) {
-        const guideBottomInset = sidebarOpen ? 78 : 8
+        const viewport = window.visualViewport
+        const viewportTop = viewport?.offsetTop ?? 0
+        const viewportHeight = viewport?.height ?? window.innerHeight
+        const safeBottom = parseFloat(getComputedStyle(guide).scrollMarginBottom) || 8
+        const guideBottomInset = sidebarOpen ? 70 + safeBottom : safeBottom
         const guideAtTop = introComplete && (
           activeLesson === 'messages'
           || activeLesson === 'pings'
@@ -582,10 +588,10 @@ function App() {
           || activeLesson === 'threads' && threadOpen
         )
         const top = !introComplete
-          ? Math.max(50, (window.innerHeight - guideHeight) / 2)
+          ? viewportTop + Math.max(8, (viewportHeight - guideHeight) / 2)
           : guideAtTop
-            ? 54
-            : Math.max(50, window.innerHeight - guideHeight - guideBottomInset)
+            ? viewportTop + 54
+            : viewportTop + Math.max(8, viewportHeight - guideHeight - guideBottomInset)
 
         if (target && !isActiveComplete && !skipRing) {
           let rect = target.getBoundingClientRect()
@@ -701,15 +707,19 @@ function App() {
     const trackSidebarScroll = () => positionGuide()
     const frame = requestAnimationFrame(revealAndPositionGuide)
     window.addEventListener('resize', revealAndPositionGuide)
-    const sidebar = document.querySelector<HTMLElement>('.sidebar')
-    sidebar?.addEventListener('scroll', trackSidebarScroll)
+    window.visualViewport?.addEventListener('resize', revealAndPositionGuide)
+    window.visualViewport?.addEventListener('scroll', trackSidebarScroll)
+    const scrollContainers = document.querySelectorAll('.sidebar, .mobile-home-list, .messages')
+    scrollContainers.forEach((container) => container.addEventListener('scroll', trackSidebarScroll))
     const card = document.querySelector<HTMLElement>('.coach')
     const observer = card ? new ResizeObserver(() => positionGuide()) : null
     if (card && observer) observer.observe(card)
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', revealAndPositionGuide)
-      sidebar?.removeEventListener('scroll', trackSidebarScroll)
+      window.visualViewport?.removeEventListener('resize', revealAndPositionGuide)
+      window.visualViewport?.removeEventListener('scroll', trackSidebarScroll)
+      scrollContainers.forEach((container) => container.removeEventListener('scroll', trackSidebarScroll))
       observer?.disconnect()
     }
   }, [activeLesson, allComplete, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
