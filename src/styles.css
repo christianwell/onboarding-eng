@@ -1342,10 +1342,11 @@ button { color: inherit; }
 }
 
 @media (max-width: 620px) {
-  .app-shell { padding-top: 0; }
+  body { min-height: 100dvh; }
+  .app-shell { height: 100dvh; padding-top: 0; }
   .topbar, .sidebar { display: none; }
   .conversation,
-  .conversation.direct-conversation { height: 100vh; grid-template-rows: 56px minmax(0, 1fr) auto; }
+  .conversation.direct-conversation { height: 100dvh; grid-template-rows: calc(56px + env(safe-area-inset-top)) minmax(0, 1fr) auto; }
   .mobile-home {
     position: fixed;
     z-index: 90;
@@ -1407,6 +1408,8 @@ button { color: inherit; }
   .mobile-home-tiles strong { font-size: 13px; line-height: 16px; }
   .mobile-home-tiles small { color: #616061; font-size: 11px; line-height: 14px; }
   .mobile-home-list { min-height: 0; flex: 1; overflow-y: auto; padding: 8px 0 82px; }
+  /* Let the last rows scroll above the guide, even when the list is short. */
+  .sidebar-open .mobile-home-list { padding-bottom: calc(min(230px, 54dvh) + 24px); }
   .mobile-home-section { padding: 5px 0; }
   .mobile-section-heading { height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: var(--fg-muted); font-size: 14px; font-weight: 700; }
   .mobile-section-heading svg { width: 16px; height: 16px; }
@@ -1459,7 +1462,7 @@ button { color: inherit; }
   .mobile-tabbar button svg { width: 22px; height: 22px; }
   .mobile-tabbar button.active { color: var(--fg-strong); }
   .mobile-tabbar button > i { position: absolute; top: 4px; left: calc(50% + 5px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; display: grid; place-items: center; color: #fff; background: #e01e5a; font-size: 9px; font-style: normal; }
-  .channel-header { min-height: 56px; padding-inline: 4px 8px; }
+  .channel-header { min-height: 56px; padding-top: env(safe-area-inset-top); padding-inline: 4px 8px; }
   .mobile-channel-back { width: 40px; height: 44px; flex: 0 0 40px; border: 0; display: grid; place-items: center; color: var(--fg); background: transparent; }
   .mobile-channel-back svg { width: 25px; height: 25px; }
   .channel-heading { min-width: 0; flex: 1; display: block; }
@@ -1488,6 +1491,8 @@ button { color: inherit; }
   .composer-actions .send-options { display: none; }
   .composer-actions .mobile-composer-more { display: flex; }
   .composer-actions .send-button { min-width: 32px; width: 32px; height: 32px; padding: 0; border-radius: 50%; }
+  .search-modal input,
+  .thread-composer .compose-row input { font-size: 16px; }
   .avatar { border-radius: var(--radius-sm); }
   .messages { padding-bottom: 16px; }
   .reading-report-dm .messages { padding-bottom: 260px; }
@@ -1497,11 +1502,21 @@ button { color: inherit; }
   .discovery-actions { grid-column: 2; }
   .message-attachment { grid-template-columns: 75px 1fr; }
   .search-results-header { align-items: flex-start; height: auto; gap: 10px; padding-block: 12px; }
+  .modal-backdrop { padding-top: max(4px, env(safe-area-inset-top)); }
   .search-modal { width: calc(100vw - 16px); min-width: 0; }
-  .thread-panel { top: 0; right: 0; left: 0; width: auto; }
-  .coach { width: calc(100vw - 16px); min-width: 0; max-height: 54vh; padding: 15px 16px 13px; }
+  .thread-panel { top: env(safe-area-inset-top); right: 0; left: 0; width: auto; }
+  .thread-composer { margin-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .coach {
+    width: calc(100vw - 16px);
+    min-width: 0;
+    max-height: 54dvh;
+    padding: 15px 16px 13px;
+    scroll-margin-bottom: max(8px, env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+  .coach-report-submit { max-height: min(54dvh, var(--report-guide-height, 54dvh)); }
   .sidebar-open .guide-spotlight { z-index: 100; }
-  .sidebar-open .coach-active { max-height: 230px; }
+  .sidebar-open .coach-active { max-height: min(230px, 54dvh); }
   .sidebar-open .coach-active .lesson-body { display: none; }
   .coach-brand { margin-bottom: 8px; }
   .coach .lesson-card h2 { font-size: 17px; }
@@ -1519,13 +1534,15 @@ button { color: inherit; }
 }
 
 @media (max-width: 620px) and (max-height: 560px) {
-  .mobile-home-header { padding-top: 6px; }
+  .mobile-home-header { padding-top: max(6px, env(safe-area-inset-top)); }
   .mobile-home-list { padding-bottom: 130px; }
-  .coach-active { max-height: 230px; padding: 11px 14px; }
-  .coach-safety { max-height: 250px; }
-  .coach-report-submit { max-height: 210px; padding-block: 9px; }
-  .coach-report-submit .coach-brand { display: none; }
-  .sidebar-open .coach-active { max-height: 194px; }
+  .coach-active { max-height: min(230px, 54dvh); padding: 11px 14px; }
+  .coach-safety { max-height: min(250px, 54dvh); }
+  .coach-report-submit { max-height: min(210px, 54dvh, var(--report-guide-height, 210px)); padding-block: 9px; }
+  .coach-report-submit .coach-brand,
+  .coach-report-submit .progress-track { display: none; }
+  .coach-report-submit .conduct-link { margin-top: 4px; }
+  .sidebar-open .coach-active { max-height: min(194px, 54dvh); }
   .coach-brand { margin-bottom: 5px; }
   .coach .progress-track { margin-bottom: 10px; }
   .coach .lesson-card h2 { margin-bottom: 6px; font-size: 16px; }

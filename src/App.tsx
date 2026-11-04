@@ -528,8 +528,12 @@ function App() {
 
     const positionGuide = (revealTarget = false) => {
       const isMobile = window.innerWidth <= 620
-      const workspaceSearchSelector = isMobile ? '.mobile-home-search' : '.search-trigger'
-      const memberSearchSelector = () => spotlightMemberInResults ? '.dm-search-result' : searchOpen ? '.search-modal input' : workspaceSearchSelector
+      const workspaceSearchSelector = isMobile
+        ? sidebarOpen ? '.mobile-home-search' : '.mobile-channel-back'
+        : '.search-trigger'
+      const memberSearchSelector = () => searchOpen
+        ? spotlightMemberInResults ? '.dm-search-result' : '.search-modal input'
+        : workspaceSearchSelector
       const selector = !introComplete
         ? null
         : isMobile && activeLesson === 'channels'
@@ -572,20 +576,38 @@ function App() {
       setSpotlightInPanel(ringInPanel)
 
       if (isMobile) {
-        const guideBottomInset = sidebarOpen ? 78 : 8
+        const viewport = window.visualViewport
+        const viewportTop = viewport?.offsetTop ?? 0
+        const viewportHeight = viewport?.height ?? window.innerHeight
+        const safeBottom = parseFloat(getComputedStyle(guide).scrollMarginBottom) || 8
+        const guideBottomInset = sidebarOpen ? 70 + safeBottom : safeBottom
         const guideAtTop = introComplete && (
           activeLesson === 'messages'
           || activeLesson === 'pings'
           || reportPhase === 'send'
-          || reportPhase === 'submit' && threadOpen
           || activeLesson === 'dms' && directMessage === 'Christian'
           || activeLesson === 'threads' && threadOpen
         )
-        const top = !introComplete
-          ? Math.max(50, (window.innerHeight - guideHeight) / 2)
+        let top = !introComplete
+          ? viewportTop + Math.max(8, (viewportHeight - guideHeight) / 2)
           : guideAtTop
-            ? 54
-            : Math.max(50, window.innerHeight - guideHeight - guideBottomInset)
+            ? viewportTop + 54
+            : viewportTop + Math.max(8, viewportHeight - guideHeight - guideBottomInset)
+
+        const reportOptions = document.querySelector('.shroud-checkbox')
+        const reportActions = document.querySelector('.shroud-actions')
+        if (reportPhase === 'submit' && threadOpen && reportOptions && reportActions) {
+          const above = reportOptions.getBoundingClientRect().top - viewportTop - 54 - 12
+          const below = viewportTop + viewportHeight - guideBottomInset - reportActions.getBoundingClientRect().bottom - 12
+          // Keep both the privacy choice and Submit reachable, even for a
+          // short report whose controls sit near the top of the thread.
+          guide.style.setProperty('--report-guide-height', `${Math.max(0, above, below)}px`)
+          top = below >= above
+            ? viewportTop + viewportHeight - guide.offsetHeight - guideBottomInset
+            : viewportTop + 54
+        } else {
+          guide.style.removeProperty('--report-guide-height')
+        }
 
         if (target && !isActiveComplete && !skipRing) {
           let rect = target.getBoundingClientRect()
@@ -701,15 +723,19 @@ function App() {
     const trackSidebarScroll = () => positionGuide()
     const frame = requestAnimationFrame(revealAndPositionGuide)
     window.addEventListener('resize', revealAndPositionGuide)
-    const sidebar = document.querySelector<HTMLElement>('.sidebar')
-    sidebar?.addEventListener('scroll', trackSidebarScroll)
+    window.visualViewport?.addEventListener('resize', revealAndPositionGuide)
+    window.visualViewport?.addEventListener('scroll', trackSidebarScroll)
+    const scrollContainers = document.querySelectorAll('.sidebar, .mobile-home-list, .messages')
+    scrollContainers.forEach((container) => container.addEventListener('scroll', trackSidebarScroll))
     const card = document.querySelector<HTMLElement>('.coach')
     const observer = card ? new ResizeObserver(() => positionGuide()) : null
     if (card && observer) observer.observe(card)
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', revealAndPositionGuide)
-      sidebar?.removeEventListener('scroll', trackSidebarScroll)
+      window.visualViewport?.removeEventListener('resize', revealAndPositionGuide)
+      window.visualViewport?.removeEventListener('scroll', trackSidebarScroll)
+      scrollContainers.forEach((container) => container.removeEventListener('scroll', trackSidebarScroll))
       observer?.disconnect()
     }
   }, [activeLesson, allComplete, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
@@ -1016,6 +1042,7 @@ function App() {
     setSearchOpen(false)
     setSearched(false)
     setSearchQuery('')
+    setSidebarOpen(false)
     setThreadOpen(false)
     setThreadMessage(null)
     setNotificationsOpen(false)
@@ -1182,7 +1209,7 @@ function App() {
           </div>
         </aside>
 
-        <section className={`conversation ${directMessage ? 'direct-conversation' : ''} ${reportPhase === 'find' && directMessage === spamSender ? 'reading-report-dm' : ''}`}>
+        <section className={`conversation ${directMessage ? 'direct-conversation' : ''} ${reportPhase === 'find' && directMessage === spamSender || reportPhase === 'submit' ? 'reading-report-dm' : ''}`}>
           <header className="channel-header">
             <button className="mobile-channel-back" aria-label="Open channel list" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><ChevronLeft /></button>
             <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} {directMessage ?? channel}</h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
@@ -1279,7 +1306,7 @@ function App() {
                   {directMessage && (message.checkmark || message.replies) && <div className="message-tools reaction-row">
                     {message.checkmark && <button className="reacted" aria-label="white_check_mark, 1 reaction"><span>✅</span> 1</button>}
                     {message.checkmark && <button className="reaction-add" aria-label="Add a reaction"><SmilePlus /></button>}
-                    {message.replies && <button className={`reply-bar ${reportPhase === 'submit' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    {message.replies && <button className={`reply-bar ${reportPhase === 'submit' && message.id === reportMessageId && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
                       <span className="reply-facepile" aria-hidden="true"><span style={{ background: report?.moderator.color }}>{report?.moderator.avatar
                         ? <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />
                         : report?.moderator.name[0]}</span></span>
@@ -1333,7 +1360,7 @@ function App() {
               animate={{ left: spotlight.left, top: spotlight.top, width: spotlight.width, height: spotlight.height }}
               transition={spotlightSpring}
             />
-            {!spotlightInPanel && spotlight.top > 82 && <motion.div
+            {!spotlightInPanel && !(reportPhase === 'submit' && threadOpen) && spotlight.top > 82 && <motion.div
               className="guide-arrow"
               initial={false}
               animate={{ left: spotlight.left + spotlight.width / 2 - 18, top: spotlight.top - 74 }}
