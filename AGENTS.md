@@ -27,8 +27,9 @@
 
 - Match the reference's layout, spacing, colors, type scale, controls, and responsive behavior. Keep program data and simulated messages configurable.
 - Never copy private Slack messages, member names, avatars, tokens, or other user data from the saved page into this repository.
-- If you need to change ui request the user gives access to a way of accessing Slack best chosen by the AI agent
-- 
+- Before changing Slack UI, explicitly ask the user for Slack access and wait for permission before opening or inspecting their session. Recommend an available client: Slack in a browser, Slack Desktop, or [Taut Desktop](https://github.com/jeremy46231/taut). Once access is approved, you may launch that client; ask the user to complete sign-in if needed, never to share credentials in chat.
+- For Taut, read its [agent guidance](https://github.com/jeremy46231/taut/blob/main/AGENTS.md) and [testing guide](https://github.com/jeremy46231/taut/blob/main/docs/testing.md) first. Reuse an authorized session; if setting up a browser, use a dedicated durable profile and local-only remote debugging with available CDP tools. Taut Desktop also exposes DevTools with `Ctrl+Alt+I` (`Cmd+Option+I` on macOS). Record the client and non-secret launch/profile details locally so future sessions can reuse them, never in committed files.
+- Keep reference inspection read-only: do not send messages, react, or change workspace settings without explicit permission. Taut plugins and custom CSS can alter Slack's appearance; use safe mode (`?taut_safe_mode`) when comparing against stock Slack and record any remaining client-specific differences.
 
 ### Keeping up with Slack design
 
@@ -58,7 +59,8 @@
 
 ## Pull requests
 
-- Briefly explain the problem, fix, and verification. For AI-assisted work, end with `AI assistance: <model> via <coding tool>.`
+- Keep PR titles short and specific. Default to a body of three short bullets: problem, fix, and verification (including blockers). Aim for no more than 120 words of prose, excluding evidence captions and the AI attribution; expand only for a material risk or necessary reviewer action. Do not repeat the diff, list every file, or include a work diary.
+- Keep required evidence below those bullets with minimal captions. For AI-assisted work, end with `AI assistance: <model> via <coding tool>.`
 - Verify the model from the current session’s usage records, status, or message metadata—not a global default or mode name. For example, Amp provides `amp threads usage <thread-id> --details`; Claude Code and Codex provide `/status`. Attribute the coding model, not title/image helpers; name multiple coding models if used. If session records are unavailable, write `AI assistance: <coding tool>; model unverified.` Never guess or expose credentials while checking.
 - UI changes need **Before** and **After** images; motion or timing changes also need a short video. Capture the same state, viewport, theme, and program before and after the edit. Include affected mobile and non-default states. Documentation-only changes need no images.
 - Use real app captures with synthetic data. Inspect them for visual defects and private information, and test interactions separately.
