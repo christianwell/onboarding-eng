@@ -1212,7 +1212,7 @@ function App() {
         <section className={`conversation ${directMessage ? 'direct-conversation' : ''} ${reportPhase === 'find' && directMessage === spamSender || reportPhase === 'submit' ? 'reading-report-dm' : ''}`}>
           <header className="channel-header">
             <button className="mobile-channel-back" aria-label="Open channel list" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><ChevronLeft /></button>
-            <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} {directMessage ?? channel}</h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
+            <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} <span>{directMessage ?? channel}</span></h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
             <div className="header-actions">
               <button><UserRound size={17} /><span>82,896</span></button>
               <button className="huddle-button"><Headphones size={17} /><ChevronDown size={14} /></button>
