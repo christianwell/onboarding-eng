@@ -1408,6 +1408,8 @@ button { color: inherit; }
   .mobile-home-tiles strong { font-size: 13px; line-height: 16px; }
   .mobile-home-tiles small { color: #616061; font-size: 11px; line-height: 14px; }
   .mobile-home-list { min-height: 0; flex: 1; overflow-y: auto; padding: 8px 0 82px; }
+  /* Let the last rows scroll above the guide, even when the list is short. */
+  .sidebar-open .mobile-home-list { padding-bottom: calc(min(230px, 54dvh) + 24px); }
   .mobile-home-section { padding: 5px 0; }
   .mobile-section-heading { height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: var(--fg-muted); font-size: 14px; font-weight: 700; }
   .mobile-section-heading svg { width: 16px; height: 16px; }
@@ -1512,6 +1514,7 @@ button { color: inherit; }
     scroll-margin-bottom: max(8px, env(safe-area-inset-bottom));
     overscroll-behavior: contain;
   }
+  .coach-report-submit { max-height: min(54dvh, var(--report-guide-height, 54dvh)); }
   .sidebar-open .guide-spotlight { z-index: 100; }
   .sidebar-open .coach-active { max-height: min(230px, 54dvh); }
   .sidebar-open .coach-active .lesson-body { display: none; }
@@ -1535,8 +1538,10 @@ button { color: inherit; }
   .mobile-home-list { padding-bottom: 130px; }
   .coach-active { max-height: min(230px, 54dvh); padding: 11px 14px; }
   .coach-safety { max-height: min(250px, 54dvh); }
-  .coach-report-submit { max-height: min(210px, 54dvh); padding-block: 9px; }
-  .coach-report-submit .coach-brand { display: none; }
+  .coach-report-submit { max-height: min(210px, 54dvh, var(--report-guide-height, 210px)); padding-block: 9px; }
+  .coach-report-submit .coach-brand,
+  .coach-report-submit .progress-track { display: none; }
+  .coach-report-submit .conduct-link { margin-top: 4px; }
   .sidebar-open .coach-active { max-height: min(194px, 54dvh); }
   .coach-brand { margin-bottom: 5px; }
   .coach .progress-track { margin-bottom: 10px; }
