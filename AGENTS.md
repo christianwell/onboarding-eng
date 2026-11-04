@@ -29,6 +29,16 @@
 - Never copy private Slack messages, member names, avatars, tokens, or other user data from the saved page into this repository.
 - If you need to change ui request the user gives access to a way of accessing Slack best chosen by the AI agent
 - 
+
+### Keeping up with Slack design
+
+- Review the current Slack web client monthly and after a visible redesign. This is a manual review cadence, not an installed scheduled task. When changing Slack UI, use the access requested above; do not assume an old saved page or simulator screenshot represents today's Slack design.
+- Compare channel views, open threads, search, notifications, and mobile navigation in both light and dark themes. Check desktop at 1440×900 and short mobile screens such as 340×510.
+- Record the review date, client/theme/viewport, and measured differences in the design-update PR. Use browser computed styles to measure shell dimensions, spacing, font family/weight/line height, colors, borders, and control placement. Record only UI measurements, never private Slack content or credentials.
+- Update shared styles in `src/styles.css` first; change `src/App.tsx` only when structure or interactions need to change. Keep program-specific data in YAML. Do not import Slack's generated CSS wholesale or automatically overwrite our styles.
+- Inspect the simulator with normal fonts and assets enabled, and exercise the affected interactions and states. Existing screenshot baselines, if available, detect regressions in this app, not upstream Slack redesigns; they do not certify fidelity to the current Slack client. Use the repository's current verification tools rather than restoring removed test tooling just for this review.
+- Keep raw Slack captures and refreshed HTML outside the repository. Do not put authenticated Slack sessions in CI or scrape unattended. Use synthetic app data for shareable before/after evidence, review every capture for private information, and follow the PR evidence rules below.
+
 ## Orchard deployment
 
 - Orchard builds the root `Dockerfile`, serves the app on port 80, and checks `/health.html`.
@@ -49,4 +59,3 @@
 - Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
 -  Changes need before/after images. Motion or timing needs a short video.
 - Upload PR evidence to GitHub. Never commit PR-only screenshots or assets such as `.github/pr-assets/`.
-
