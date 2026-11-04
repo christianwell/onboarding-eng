@@ -1,8 +1,5 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
-import FlowTester from './FlowTester'
-import ProgramBuilder from './ProgramBuilder'
 import './styles.css'
 
 // Only Slack referrals should enter the guide from the homepage.
@@ -20,15 +17,17 @@ if (window.location.pathname === import.meta.env.BASE_URL) {
     : 'https://github.com/christianwell/onboarding-eng')
 } else {
   const pathname = window.location.pathname.replace(/\/$/, '')
-  const Page = pathname.endsWith('/flow-tester')
-    ? FlowTester
+  const Page = React.lazy(() => pathname.endsWith('/flow-tester')
+    ? import('./FlowTester')
     : pathname.endsWith('/program-builder')
-      ? ProgramBuilder
-      : App
+      ? import('./ProgramBuilder')
+      : import('./App'))
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <Page />
+      <React.Suspense fallback={null}>
+        <Page />
+      </React.Suspense>
     </React.StrictMode>,
   )
 }
