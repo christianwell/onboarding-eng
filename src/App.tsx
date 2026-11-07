@@ -40,7 +40,7 @@ import {
 import confetti from 'canvas-confetti'
 import NumberFlow from '@number-flow/react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { trackEvent, trackLessonCompleted } from './analytics'
+import { createOnboardingTracker } from './analytics'
 import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
 type Message = {
@@ -387,7 +387,9 @@ function App() {
   }
 
   useEffect(() => {
+    let cancelled = false
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
+      if (cancelled) return
       const step = getProgramStep(window.location.pathname)
       if (step !== null) {
         if (!lessonIds.includes(step as LessonId)) throw new Error('Unknown program step')
@@ -400,8 +402,22 @@ function App() {
       setJoinedChannels(getDefaultChannels(loaded))
       setMessages(makeChannelMessages(loaded, initialChannel))
       document.title = `${loaded.program.name} · Slack Flight School`
-    }).catch(() => window.location.replace('https://hackclub.com/'))
+    }).catch(() => {
+      if (!cancelled) window.location.replace('https://hackclub.com/')
+    })
+    return () => { cancelled = true }
   }, [])
+
+  const onboardingTracker = useMemo(() => config ? createOnboardingTracker(
+    config.program.slug,
+    getProgramStep(window.location.pathname) === null ? 'full_guide' : 'single_lesson',
+    config.training.lessons.length,
+  ) : null, [config])
+
+  useEffect(() => {
+    onboardingTracker?.view()
+    if (introComplete) onboardingTracker?.start()
+  }, [onboardingTracker, introComplete])
 
   const lessons = config?.training.lessons ?? []
   const defaultChannels = config ? getDefaultChannels(config) : []
@@ -509,10 +525,7 @@ function App() {
   useEffect(() => {
     if (!allComplete || !config) return
 
-    trackEvent('Onboarding Completed', {
-      program: config.program.slug,
-      handoff: returnsToFlow ? 'return' : 'auth',
-    })
+    onboardingTracker?.complete(returnsToFlow ? 'return' : 'auth')
     const completion = {
       type: 'hackclub:onboarding-complete',
       program: config.program.slug,
@@ -523,12 +536,15 @@ function App() {
     if (window.parent !== window) window.parent.postMessage(completion, '*')
 
     const stopFireworks = fireCompletionFireworks(config.program.color)
-    const redirect = window.setTimeout(() => window.location.assign(completionUrl), completionDelay)
+    const redirect = window.setTimeout(() => {
+      onboardingTracker?.handoff(returnsToFlow ? 'return' : 'auth', 'automatic')
+      window.location.assign(completionUrl)
+    }, completionDelay)
     return () => {
       stopFireworks()
       window.clearTimeout(redirect)
     }
-  }, [allComplete, completionUrl, config, returnsToFlow])
+  }, [allComplete, completionUrl, config, returnsToFlow, onboardingTracker])
 
   useLayoutEffect(() => {
     if (allComplete) return
@@ -797,12 +813,12 @@ function App() {
     const next = [...completed, lesson]
     setCompleted(next)
     fireMissionConfetti(config.program.color)
-    trackLessonCompleted(lesson, config.program.slug, lessonIndex + 1, lessons.length)
+    onboardingTracker?.lessonCompleted(lesson, lessonIndex + 1)
     setPendingAdvance(lesson)
   }
 
   const startOnboarding = () => {
-    trackEvent('Onboarding Started', { program: config!.program.slug })
+    onboardingTracker?.start()
     setIntroComplete(true)
   }
 
@@ -1512,7 +1528,7 @@ function App() {
           <p className="completion-step">Step {lessons.length + 1} of {lessons.length + 1} · Complete</p>
           <h1>Congrats!<br /><span>You’ve learned Slack.</span></h1>
           <p>{returnsToFlow ? 'You’re all set. We’re sending you back to continue where you left off.' : `You’re all set. Continue to ${config.program.name} to join the community.`}</p>
-          <a href={completionUrl}>{returnsToFlow ? 'Return to your flow' : `Continue to ${config.program.name}`} <ChevronRight size={19} /></a>
+          <a href={completionUrl} onClick={() => onboardingTracker?.handoff(returnsToFlow ? 'return' : 'auth', 'click')}>{returnsToFlow ? 'Return to your flow' : `Continue to ${config.program.name}`} <ChevronRight size={19} /></a>
           <small>Redirecting automatically…</small>
         </section></div>}
       </main>
