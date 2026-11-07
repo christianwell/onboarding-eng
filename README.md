@@ -16,44 +16,9 @@
 <p align="center">
   <a href="https://welcome.hackclub.com/slack"><em>live demo</em></a>
 </p>
+<img width="1274" height="633" alt="image" src="https://github.com/user-attachments/assets/97fb27fc-5e46-4d72-920c-b9e2c46848f8" />
 
-## Campaign configuration
 
-Open `/program-builder` to choose lessons and export `config.yaml`. Put it in
-`public/programs/<slug>/` alongside the campaign logo. The onboarding route is
-`/program/<slug>`.
-
-The YAML has these sections:
-
-- `program`: campaign name, slug, color, logo, and tagline.
-- `training`: the guide's target channel, practice channel, and enabled lessons.
-  Only lessons listed in `training.lessons` run; none are mandatory. The guide
-  uses its standard lesson order, regardless of the order they were selected.
-- `channels`: grouped default memberships, recommended channels, and read-only
-  channels. Recommended channels are suggestions, not automatic memberships.
-- `copy` (optional): human-written lesson copy overrides. The builder exports
-  only edited copy for enabled lessons; omitted lessons use the reviewed defaults.
-  Each override contains `title`, `body`, and `task`.
-- `support` (optional): the support channel, bot acknowledgement, and FAQ. Omitted
-  when support is disabled.
-- `completion`: the Auth URL, entry channel, and allowed return origins.
-
-Available lesson IDs: `channels`, `messages`, `pings`, `dms`, `threads`,
-`reactions`, `search`, `notifications`, and `safety`. For example:
-
-```yaml
-training:
-  channel_target: my-program
-  practice_channel: my-program
-  lessons:
-    - channels
-    - messages
-    - search
-```
-
-This selection does not add pings, direct messages, threads, or reactions.
-The builder keeps edits to deselected lessons in your local draft so they return
-if you re-enable the lesson, but leaves them out of the exported YAML.
 
 <h1 align="center">Contributors</h1>
 
