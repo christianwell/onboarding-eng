@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, lessonIds, validateProgram } from './program'
+import { getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepSearchChannel, lessonIds, validateProgram } from './program'
 
 const config = {
   program: { name: 'Stardance', slug: 'stardance', color: '#6c5ce7', logo: '/logo.svg', tagline: 'Build!' },
@@ -37,6 +37,21 @@ describe('program configuration', () => {
     expect(getProgramStep('/slack')).toBeNull()
     expect(() => getProgramStep('/step/')).toThrow('Invalid step URL')
     expect(() => getProgramStep('/step/threads/extra')).toThrow('Invalid step URL')
+  })
+
+  it('resolves channel-targeted search links with literal or encoded hashes', () => {
+    for (const path of ['/step/search+#stardance', '/step/search+%23stardance', '/step/search+stardance']) {
+      const url = new URL(path, 'https://onboarding.example')
+      expect(getProgramStep(url.pathname)).toBe('search')
+      expect(getProgramSlug(url.pathname)).toBe('slack')
+      expect(getStepSearchChannel(url.href)).toBe('stardance')
+    }
+    expect(getStepSearchChannel('https://onboarding.example/program/stardance/step/search+#new-channel')).toBe('new-channel')
+    expect(getStepSearchChannel('https://onboarding.example/step/search')).toBeNull()
+    expect(getStepSearchChannel('https://onboarding.example/slack#code')).toBeNull()
+    for (const suffix of ['', '#', '#two words', '%ZZ', '#../code']) {
+      expect(() => getStepSearchChannel(`https://onboarding.example/step/search+${suffix}`)).toThrow()
+    }
   })
 
   it('accepts known lesson IDs', () => {
