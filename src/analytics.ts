@@ -15,6 +15,7 @@ const lessonNames: Record<LessonId, string> = {
   reactions: 'Reactions',
   search: 'Search',
   notifications: 'Notifications',
+  huddles: 'Huddles',
   safety: 'Safety',
 }
 

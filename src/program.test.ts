@@ -48,8 +48,8 @@ describe('program configuration', () => {
     expect(validateProgram(structuredClone(config)).training.lessons).toEqual(['channels', 'messages'])
     expect(validateProgram({
       ...structuredClone(config),
-      training: { ...config.training, lessons: ['channels', 'threads', 'dms', 'threads', 'safety'] },
-    }).training.lessons).toEqual(['channels', 'threads', 'dms', 'safety'])
+      training: { ...config.training, lessons: ['channels', 'threads', 'dms', 'threads', 'huddles', 'safety'] },
+    }).training.lessons).toEqual(['channels', 'threads', 'dms', 'huddles', 'safety'])
   })
 
   it('rejects unknown lesson IDs', () => {

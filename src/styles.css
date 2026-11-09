@@ -563,6 +563,8 @@ button { color: inherit; }
 .header-actions span { color: var(--fg); font-size: 13px; font-weight: 700; }
 
 .header-actions .huddle-button { padding-inline: 6px; }
+.header-actions .huddle-button:disabled { opacity: .45; cursor: default; }
+.header-actions .huddle-button.target-pulse { color: var(--success); }
 .notification-wrap { position: relative; }
 
 .notification-menu {
@@ -1265,6 +1267,43 @@ button { color: inherit; }
 }
 @keyframes hcChevron { 0%, 100% { opacity: .18; } 40% { opacity: 1; } }
 
+/* --- Simulated huddle ----------------------------------------------------- */
+
+.huddle-backdrop { place-items: center; padding: 20px; background: rgba(0, 0, 0, .6); }
+.huddle-window { width: min(1280px, 100%); height: calc(100dvh - 40px); display: grid; grid-template: auto minmax(0, 1fr) auto auto / minmax(0, 1fr); overflow: hidden; border: 1px solid #414345; border-radius: 10px; color: #fff; background: #202225; box-shadow: var(--shadow-modal); }
+.huddle-window:focus { outline: none; }
+.huddle-person-avatar { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: #ec3750; font-size: 36px; font-weight: 700; }
+.huddle-simulation { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; color: #d1d2d3; font-size: 11px; }
+.huddle-preview { width: min(524px, 100%); height: auto; max-height: calc(100dvh - 40px); grid-template-rows: auto minmax(0, 1fr) auto auto; padding: 8px; border-color: #414345; background: #202225; }
+.huddle-preview-heading { min-width: 0; padding: 14px 8px 18px; text-align: center; overflow-wrap: anywhere; }
+.huddle-preview-card { min-height: 0; overflow-y: auto; padding: 24px 58px; border: 1px solid #626466; border-radius: 12px; background: #494b4d; }
+.huddle-preview-self { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-radius: 10px; background: #303235; }
+.huddle-preview-self.huddle-camera-on { background: #6c4675; }
+.huddle-preview-toggles { position: absolute; bottom: 14px; display: flex; gap: 12px; }
+.huddle-preview-toggles button { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 0; border-radius: 8px; color: #fff; background: #202225cc; cursor: pointer; }
+.huddle-preview-toggles button[aria-pressed='true'] { background: #65676a; }
+.huddle-devices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 24px; }
+.huddle-devices label { display: flex; align-items: center; gap: 4px; min-width: 0; padding: 8px; border-radius: 6px; color: #c5c6c8; background: #202225; }
+.huddle-devices label > svg { flex-shrink: 0; }
+.huddle-devices select { min-width: 0; width: 100%; border: 0; color: inherit; background: transparent; font: inherit; font-size: 13px; }
+.huddle-preview-actions { display: flex; justify-content: center; gap: 36px; padding: 20px 0 8px; }
+.huddle-preview-actions button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: 0; color: #fff; background: transparent; font: inherit; cursor: pointer; }
+.huddle-preview-actions button > span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: #56585a; }
+.huddle-preview-actions .huddle-join { font-weight: 700; }
+.huddle-preview-actions .huddle-join > span { outline: 3px solid #5cb8df; outline-offset: 2px; color: #202225; background: #dbdcde; }
+
+@media (max-width: 620px) {
+  .huddle-backdrop { padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); }
+  .huddle-window { height: calc(100dvh - 32px); }
+  .huddle-person-avatar { width: 56px; height: 56px; font-size: 28px; }
+  .huddle-window.huddle-preview { height: auto; max-height: calc(100dvh - 32px); }
+  .huddle-preview-card { padding: 16px; }
+  .huddle-preview-self { max-height: 240px; aspect-ratio: 1.15; }
+  .huddle-devices { gap: 6px; margin-top: 16px; }
+  .huddle-devices label { padding: 6px; }
+  .huddle-preview-actions { padding-top: 16px; }
+}
+
 /* --------------------------------------------------------------------------
    Completion
 -------------------------------------------------------------------------- */
@@ -1285,7 +1324,7 @@ button { color: inherit; }
 -------------------------------------------------------------------------- */
 
 @media (max-width: 980px) {
-  .header-actions .huddle-button { display: none; }
+  .header-actions .huddle-button:not(.target-pulse) { display: none; }
   .channel-header p { display: none; }
 }
 

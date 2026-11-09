@@ -41,6 +41,7 @@ import confetti from 'canvas-confetti'
 import NumberFlow from '@number-flow/react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { createOnboardingTracker } from './analytics'
+import Huddle from './Huddle'
 import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
 type Message = {
@@ -360,6 +361,7 @@ function App() {
   const [searched, setSearched] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notificationMode, setNotificationMode] = useState('All new messages')
+  const [huddleConversation, setHuddleConversation] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [finished, setFinished] = useState(false)
   const [spotlight, setSpotlight] = useState<OverlayRect | null>(null)
@@ -580,9 +582,11 @@ function App() {
                         ? '.target-action'
                         : activeLesson === 'search'
                           ? workspaceSearchSelector
-                          : activeLesson === 'notifications'
-                            ? '.target-pulse'
-                            : null
+                          : activeLesson === 'huddles'
+                            ? '.huddle-button'
+                            : activeLesson === 'notifications'
+                              ? '.target-pulse'
+                              : null
       const target = selector ? document.querySelector<HTMLElement>(selector) : null
       const guide = document.querySelector<HTMLElement>('.coach')
       if (!guide) return
@@ -1238,7 +1242,12 @@ function App() {
             <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} <span>{directMessage ?? channel}</span></h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
             <div className="header-actions">
               <button><UserRound size={17} /><span>82,896</span></button>
-              <button className="huddle-button"><Headphones size={17} /><ChevronDown size={14} /></button>
+              <button
+                className={`huddle-button ${targetLesson === 'huddles' ? 'target-pulse' : ''}`}
+                aria-label={defaultLessonCopy.huddles.title}
+                disabled={activeLesson !== 'huddles'}
+                onClick={() => { confetti.reset(); setHuddleConversation(directMessage ?? `#${channel}`) }}
+              ><Headphones size={17} /><ChevronDown size={14} /></button>
               <div className="notification-wrap">
                 <button className={targetLesson === 'notifications' ? 'target-pulse' : ''} aria-label="Notification settings" onClick={() => setNotificationsOpen((value) => !value)}>{notificationMode === 'Mentions & DMs' ? <BellRing size={19} /> : <Bell size={19} />}</button>
                 {notificationsOpen && <div className="notification-menu"><strong>Notify me about…</strong>{['All new messages', 'Mentions & DMs', 'Nothing'].map((mode) => <button key={mode} onClick={() => { setNotificationMode(mode); setNotificationsOpen(false); if (mode === 'Mentions & DMs') completeLesson('notifications') }}><span>{mode}</span>{notificationMode === mode && <Check size={17} />}</button>)}</div>}
@@ -1374,7 +1383,9 @@ function App() {
           {!directMessage && channelView === 'messages' && isReadOnlyChannel(config, channel) && <div className="read-only-notice"><ShieldCheck /><div><strong>Only certain people can post in this channel</strong></div></div>}
         </section>
 
-        {!allComplete && <>
+        {huddleConversation && <Huddle conversation={huddleConversation} onCancel={() => setHuddleConversation(null)} onJoin={() => { completeLesson('huddles'); setHuddleConversation(null) }} />}
+
+        {!allComplete && !huddleConversation && <>
           {(!spotlight || spotlightInPanel) && <div className="guide-dim" />}
           {spotlight && <>
             <motion.div
