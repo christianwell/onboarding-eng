@@ -41,6 +41,7 @@ const configurableLessons: { id: LessonId; label: string; detail: string }[] = [
   { id: 'reactions', label: 'Reactions', detail: defaultLessonCopy.reactions.title },
   { id: 'search', label: 'Search', detail: 'Find existing community answers' },
   { id: 'notifications', label: 'Notifications', detail: 'Protect focus in a busy workspace' },
+  { id: 'huddles', label: 'Huddles', detail: defaultLessonCopy.huddles.title },
   { id: 'safety', label: 'Safety', detail: 'Know how to contact moderators' },
 ]
 

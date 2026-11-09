@@ -9,6 +9,7 @@ export const lessonIds = [
   'reactions',
   'search',
   'notifications',
+  'huddles',
   'safety',
 ] as const
 
@@ -20,7 +21,8 @@ export interface LessonCopy {
   task: string
 }
 
-// Reviewed human-authored copy from PR #1. Program configs may override any lesson.
+// Reviewed human-authored copy from PR #1, with huddle copy supplied by the user.
+// Program configs may override any lesson.
 export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   channels: {
     title: 'Slack uses channels',
@@ -61,6 +63,11 @@ export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
     title: 'Make notifications work for you',
     body: 'Busy channels move fast. Setting your notifications to “Mentions & DMs” keeps important pings while letting you catch up on channels when you choose!',
     task: 'Set notifications to “Mentions & DMs”.',
+  },
+  huddles: {
+    title: 'Join a huddle',
+    body: 'A huddle is a voice call where you can speak with other people. You don’t have to turn on your camera or even speak; there is a huddle chat.',
+    task: 'Click the headphones icon at the top of the conversation.',
   },
   safety: {
     title: 'Know what to do when something feels wrong',
