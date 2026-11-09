@@ -42,7 +42,7 @@ import NumberFlow from '@number-flow/react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { createOnboardingTracker } from './analytics'
 import Huddle from './Huddle'
-import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
+import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepSearchChannel, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
 type Message = {
   id: number
@@ -357,6 +357,7 @@ function App() {
   const [alsoSendToChannel, setAlsoSendToChannel] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchChannelTarget, setSearchChannelTarget] = useState<string | null>(null)
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1)
   const [searched, setSearched] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -393,11 +394,16 @@ function App() {
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
       if (cancelled) return
       const step = getProgramStep(window.location.pathname)
+      const searchTarget = getStepSearchChannel(window.location.href)
       if (step !== null) {
         if (!lessonIds.includes(step as LessonId)) throw new Error('Unknown program step')
         loaded.training.lessons = [step as LessonId]
         setIntroComplete(true)
       }
+      if (searchTarget && !getDefaultChannels(loaded).includes(searchTarget) && !loaded.channels.recommended.includes(searchTarget)) {
+        loaded.channels.recommended.push(searchTarget)
+      }
+      setSearchChannelTarget(searchTarget)
       const initialChannel = step && step !== 'channels' ? loaded.training.practice_channel : loaded.completion.entry_channel
       setConfig(loaded)
       setChannel(initialChannel)
@@ -485,6 +491,8 @@ function App() {
     body: resolveProgramCopy(configuredLessonCopy.body, config!),
     task: activeLesson === 'dms' && directMessage === 'Christian'
       ? 'Send Christian a friendly hello in this DM.'
+      : activeLesson === 'search' && searchChannelTarget
+      ? defaultLessonCopy.search.task.replace('hardware help', `#${searchChannelTarget}`)
       : resolveProgramCopy(configuredLessonCopy.task, config!).replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
   } : null
   // Nothing is a spotlight target until the reader has started the tour.
@@ -539,6 +547,7 @@ function App() {
 
     const stopFireworks = fireCompletionFireworks(config.program.color)
     const redirect = window.setTimeout(() => {
+      if (getProgramStep(window.location.pathname) !== null) window.close()
       onboardingTracker?.handoff(returnsToFlow ? 'return' : 'auth', 'automatic')
       window.location.assign(completionUrl)
     }, completionDelay)
@@ -995,6 +1004,10 @@ function App() {
   }
 
   const completeSearchIfMatched = (selectedChannel?: string) => {
+    if (searchChannelTarget) {
+      if (selectedChannel === searchChannelTarget) completeLesson('search')
+      return
+    }
     const query = searchQuery.toLowerCase()
     if ((selectedChannel === 'hardware' || parsedSearch.scope === 'hardware' || query.includes('hardware')) && query.includes('help')) {
       completeLesson('search')

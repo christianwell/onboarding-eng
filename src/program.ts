@@ -219,7 +219,17 @@ export function getProgramStep(pathname: string) {
   const stepIndex = parts.indexOf('step')
   if (stepIndex < 0) return null
   if (parts.length !== stepIndex + 2) throw new Error('Invalid step URL')
-  return parts[stepIndex + 1]
+  const step = parts[stepIndex + 1]
+  return step.startsWith('search+') ? 'search' : step
+}
+
+export function getStepSearchChannel(currentUrl: string) {
+  const url = new URL(currentUrl)
+  const step = url.pathname.split('/').filter(Boolean).at(-1) ?? ''
+  if (getProgramStep(url.pathname) !== 'search' || !step.startsWith('search+')) return null
+  const channel = decodeURIComponent(step.slice('search+'.length) || url.hash).replace(/^#/, '')
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(channel)) throw new Error('Invalid search channel')
+  return channel
 }
 
 export function getCompletionUrl(config: ProgramConfig, currentUrl: string) {
