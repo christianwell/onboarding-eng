@@ -2,12 +2,12 @@
 
 ## Working approach
 
-- Own the task from investigation through implementation and verification. Do not wait for the user to ask you to read the code, reproduce a bug, or run relevant tests.
+- Own requested repository changes through investigation, implementation, verification, evidence, and PR delivery. Do not wait for follow-up prompts to finish these parts.
 - Start with the issue, affected code, program config, and existing tests. For UI bugs, work from the visible element to its component, event handler, state, and config. Find an analogous implementation before introducing new machinery; distinguish a reproduced cause from a hypothesis.
 - Study unfamiliar APIs or behavior as needed using existing repository patterns, dependency documentation, and authoritative sources. Keep research focused on the current task, then apply what you learned.
 - Make small, reversible decisions independently. Ask only when essential information is unavailable, requirements conflict, or an action needs permission. Do not invent product copy to fill gaps.
 - Make the smallest complete fix, inspect the final diff, and leave unrelated changes alone. Keep the user informed at meaningful milestones rather than asking approval for routine local work.
-- Do not push, merge, deploy, or change shared systems without authorization for that action. Report what was changed, what was actually verified, and what remains local or undelivered. (check ## Pull requests)
+- A request to change this repository authorizes committing and pushing that task’s changes to a feature branch and opening or updating its PR, unless the user asks for local-only work. Follow the Pull requests rules below without asking for separate permission to deliver the PR. Merging, deploying, destructive actions, and other shared-system changes still require explicit authorization. Report what was verified and the actual delivery state.
 
 ## Where to look
 
@@ -63,7 +63,9 @@
 - Keep PR titles short and specific. Default to a body of three short bullets: problem, fix, and verification (including blockers). Aim for no more than 120 words of prose, excluding evidence captions and the AI attribution; expand only for a material risk or necessary reviewer action. Do not repeat the diff, list every file, or include a work diary.
 - Keep required evidence below those bullets with minimal captions. For AI-assisted work, end with `AI assistance: <model> via <coding tool>.`
 - Verify the model from the current session’s usage records, status, or message metadata—not a global default or mode name. For example, Amp provides `amp threads usage <thread-id> --details`; Claude Code and Codex provide `/status`. Attribute the coding model, not title/image helpers; name multiple coding models if used. If session records are unavailable, write `AI assistance: <coding tool>; model unverified.` Never guess or expose credentials while checking.
-- UI changes need **Before** and **After** images; motion or timing changes also need a short video. Capture the same state, viewport, theme, and program before and after the edit. Include affected mobile and non-default states. Documentation-only changes need no images.
+- UI changes need **Before** and **After** images; motion or timing changes also need a short video. Capture the baseline before editing, then capture the same state, viewport, theme, and program after the edit. Include affected mobile and non-default states. Documentation-only changes need no images.
 - Use real app captures with synthetic data. Inspect them for visual defects and private information, and test interactions separately.
 - Keep PR evidence outside version control, in a temporary or Git-ignored directory of your choice. Upload it as GitHub attachments and embed it in the PR body; local paths and expiring links do not count. Never commit PR-only images or videos.
+- Upload images and videos with GitHub CLI 2.99.0 or newer: `gh pr edit <number> --body-file <markdown-file> --attach <image-path> --attach <video-path>`. Reference the attached files with absolute paths in the Markdown (`![Before](<image-path>)` and a standalone `![](<video-path>)`); the CLI replaces those paths with GitHub attachment URLs.
+- If the installed CLI lacks `--attach`, download a supported release from `cli/cli` into a temporary directory and run its binary without replacing the system CLI. This upload method uses the existing `gh` authentication and does not require Browser MCP; a paused browser alone is not an upload blocker. See [GitHub CLI attachment documentation](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli).
 - Check upload access early and request permission if needed. Keep the PR draft if evidence is blocked, and explain why. Verify attachments render before marking it ready. Preserve others’ edits when updating the PR body.
