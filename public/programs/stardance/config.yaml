@@ -13,6 +13,7 @@ training:
     - messages
     - search
     - notifications
+    - leave-channel
     - safety
 
 channels:

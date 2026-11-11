@@ -10,6 +10,7 @@ export const lessonIds = [
   'search',
   'notifications',
   'huddles',
+  'leave-channel',
   'safety',
 ] as const
 
@@ -21,7 +22,7 @@ export interface LessonCopy {
   task: string
 }
 
-// Reviewed human-authored copy from PR #1, with huddle copy supplied by the user.
+// Reviewed human-authored copy from PR #1, with huddle and leave-channel copy supplied by the user.
 // Program configs may override any lesson.
 export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
   channels: {
@@ -68,6 +69,11 @@ export const defaultLessonCopy: Record<LessonId, LessonCopy> = {
     title: 'Join a huddle',
     body: 'A huddle is a voice call where you can speak with other people. You don’t have to turn on your camera or even speak; there is a huddle chat.',
     task: 'Click the headphones icon at the top of the conversation.',
+  },
+  'leave-channel': {
+    title: 'How to leave a channel',
+    body: 'Don’t want to be pinged or be in a channel? Well, here’s how to leave it.',
+    task: 'Right-click #{{practice_channel}} → Leave channel',
   },
   safety: {
     title: 'Know what to do when something feels wrong',
@@ -220,15 +226,16 @@ export function getProgramStep(pathname: string) {
   if (stepIndex < 0) return null
   if (parts.length !== stepIndex + 2) throw new Error('Invalid step URL')
   const step = parts[stepIndex + 1]
-  return step.startsWith('search+') ? 'search' : step
+  return step.startsWith('search+') ? 'search' : step.startsWith('leave-channel+') ? 'leave-channel' : step
 }
 
-export function getStepSearchChannel(currentUrl: string) {
+export function getStepChannel(currentUrl: string) {
   const url = new URL(currentUrl)
   const step = url.pathname.split('/').filter(Boolean).at(-1) ?? ''
-  if (getProgramStep(url.pathname) !== 'search' || !step.startsWith('search+')) return null
-  const channel = decodeURIComponent(step.slice('search+'.length) || url.hash).replace(/^#/, '')
-  if (!/^[a-z0-9][a-z0-9_-]*$/.test(channel)) throw new Error('Invalid search channel')
+  const lesson = getProgramStep(url.pathname)
+  if ((lesson !== 'search' && lesson !== 'leave-channel') || !step.startsWith(`${lesson}+`)) return null
+  const channel = decodeURIComponent(step.slice(`${lesson}+`.length) || url.hash).replace(/^#/, '')
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(channel)) throw new Error('Invalid step channel')
   return channel
 }
 

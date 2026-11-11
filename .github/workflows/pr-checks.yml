@@ -39,6 +39,12 @@ jobs:
       - name: Build GitHub Pages app
         run: npm run build:github
 
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Test lesson interactions
+        run: npm run test:browser
+
       - name: Upload unit-test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

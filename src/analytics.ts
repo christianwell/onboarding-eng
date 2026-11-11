@@ -16,6 +16,7 @@ const lessonNames: Record<LessonId, string> = {
   search: 'Search',
   notifications: 'Notifications',
   huddles: 'Huddles',
+  'leave-channel': 'Leave Channel',
   safety: 'Safety',
 }
 

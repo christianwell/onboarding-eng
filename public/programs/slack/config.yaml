@@ -13,6 +13,7 @@ training:
     - threads
     - dms
     - huddles
+    - leave-channel
     - safety
 
 channels:
