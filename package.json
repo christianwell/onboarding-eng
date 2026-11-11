@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "build:github": "tsc -b && vite build --mode github",
     "test": "vitest run src",
+    "test:browser": "playwright test",
     "check": "npm run test && npm run build"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "yaml": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",

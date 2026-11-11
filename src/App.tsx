@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -42,7 +42,7 @@ import NumberFlow from '@number-flow/react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { createOnboardingTracker } from './analytics'
 import Huddle from './Huddle'
-import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepSearchChannel, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
+import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepChannel, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
 type Message = {
   id: number
@@ -361,6 +361,8 @@ function App() {
   const [searchActiveIndex, setSearchActiveIndex] = useState(-1)
   const [searched, setSearched] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [channelActionsOpen, setChannelActionsOpen] = useState(false)
+  const [channelContext, setChannelContext] = useState<{ name: string; left: number; top: number } | null>(null)
   const [notificationMode, setNotificationMode] = useState('All new messages')
   const [huddleConversation, setHuddleConversation] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -376,6 +378,7 @@ function App() {
   const messageListRef = useRef<HTMLDivElement>(null)
   const messageScrollRef = useRef<{ conversation: string; count: number } | null>(null)
   const messageScrollInitializedRef = useRef(false)
+  const channelActionsRef = useRef<HTMLButtonElement>(null)
 
   const isDark = theme === 'dark'
 
@@ -394,12 +397,14 @@ function App() {
     loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
       if (cancelled) return
       const step = getProgramStep(window.location.pathname)
-      const searchTarget = getStepSearchChannel(window.location.href)
+      const stepChannel = getStepChannel(window.location.href)
+      const searchTarget = step === 'search' ? stepChannel : null
       if (step !== null) {
         if (!lessonIds.includes(step as LessonId)) throw new Error('Unknown program step')
         loaded.training.lessons = [step as LessonId]
         setIntroComplete(true)
       }
+      if (step === 'leave-channel' && stepChannel) loaded.training.practice_channel = stepChannel
       if (searchTarget && !getDefaultChannels(loaded).includes(searchTarget) && !loaded.channels.recommended.includes(searchTarget)) {
         loaded.channels.recommended.push(searchTarget)
       }
@@ -407,7 +412,7 @@ function App() {
       const initialChannel = step && step !== 'channels' ? loaded.training.practice_channel : loaded.completion.entry_channel
       setConfig(loaded)
       setChannel(initialChannel)
-      setJoinedChannels(getDefaultChannels(loaded))
+      setJoinedChannels([...new Set([...getDefaultChannels(loaded), ...(step === 'leave-channel' ? [initialChannel] : [])])])
       setMessages(makeChannelMessages(loaded, initialChannel))
       document.title = `${loaded.program.name} · Slack Flight School`
     }).catch(() => {
@@ -489,11 +494,13 @@ function App() {
   const activeCopy = activeLesson && configuredLessonCopy ? {
     title: resolveProgramCopy(configuredLessonCopy.title, config!),
     body: resolveProgramCopy(configuredLessonCopy.body, config!),
-    task: activeLesson === 'dms' && directMessage === 'Christian'
+    task: activeLesson === 'leave-channel' && configuredLessonCopy === defaultLessonCopy['leave-channel'] && window.innerWidth <= 620
+      ? `⋯ → Leave channel (#${config!.training.practice_channel})`
+      : activeLesson === 'dms' && directMessage === 'Christian'
       ? 'Send Christian a friendly hello in this DM.'
       : activeLesson === 'search' && searchChannelTarget
       ? defaultLessonCopy.search.task.replace('hardware help', `#${searchChannelTarget}`)
-      : resolveProgramCopy(configuredLessonCopy.task, config!).replaceAll('#stardance', `#${activeLesson === 'channels' ? config?.training.channel_target ?? 'program' : config?.training.practice_channel ?? 'program'}`),
+      : resolveProgramCopy(configuredLessonCopy.task.replaceAll('#stardance', `#${activeLesson === 'channels' ? config!.training.channel_target : config!.training.practice_channel}`), config!),
   } : null
   // Nothing is a spotlight target until the reader has started the tour.
   const targetLesson = introComplete && !isActiveComplete ? activeLesson : null
@@ -570,6 +577,11 @@ function App() {
         : workspaceSearchSelector
       const selector = !introComplete
         ? null
+        : activeLesson === 'leave-channel'
+          ? channelActionsOpen ? '.leave-channel-action'
+            : !isMobile ? '.leave-channel-sidebar'
+              : sidebarOpen ? '.mobile-leave-channel'
+                : directMessage || channel !== config?.training.practice_channel ? '.mobile-channel-back' : '.channel-actions-trigger'
         : isMobile && activeLesson === 'channels'
           ? sidebarOpen ? '.mobile-target-channel' : '.mobile-channel-back'
           : activeLesson === 'notifications' && notificationsOpen
@@ -774,7 +786,27 @@ function App() {
       scrollContainers.forEach((container) => container.removeEventListener('scroll', trackSidebarScroll))
       observer?.disconnect()
     }
-  }, [activeLesson, allComplete, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
+  }, [activeLesson, allComplete, channel, channelActionsOpen, channelContext, config, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
+
+  useEffect(() => {
+    if (!channelActionsOpen) return
+    const close = (event: Event) => {
+      if (event.target instanceof Node && document.querySelector('.channel-actions-wrap')?.contains(event.target)) return
+      setChannelActionsOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setChannelActionsOpen(false)
+      if (channelContext) document.querySelector<HTMLButtonElement>('.leave-channel-sidebar')?.focus()
+      else channelActionsRef.current?.focus()
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [channelActionsOpen, channelContext])
 
   // Slack dismisses its header menus on an outside click or Escape.
   useEffect(() => {
@@ -838,6 +870,7 @@ function App() {
   const selectChannel = (name: string) => {
     setChannel(name)
     if (config) setMessages(makeChannelMessages(config, name))
+    setChannelActionsOpen(false)
     setChannelView('messages')
     setThreadOpen(false)
     setThreadMessage(null)
@@ -848,6 +881,7 @@ function App() {
 
   const selectDirectMessage = (name: string) => {
     setDirectMessage(name)
+    setChannelActionsOpen(false)
     setDirectMessages(makeDirectMessages(name, config))
     setSidebarOpen(false)
     setDraft('')
@@ -1027,6 +1061,28 @@ function App() {
     if (open) selectChannel(name)
   }
 
+  const leaveChannel = () => {
+    const leaving = channelContext?.name ?? channel
+    const index = joinedChannels.indexOf(leaving)
+    const remaining = joinedChannels.filter((name) => name !== leaving)
+    setJoinedChannels(remaining)
+    setChannelActionsOpen(false)
+    if (leaving === config?.training.practice_channel) completeLesson('leave-channel')
+    if (!directMessage && channel === leaving) {
+      // Slack opens the preceding channel when leaving the current conversation.
+      if (remaining.length) selectChannel(remaining[Math.max(0, index - 1)])
+      else setChannelView('discover')
+    }
+  }
+
+  const openChannelContextMenu = (event: ReactMouseEvent<HTMLButtonElement>, name: string) => {
+    if (activeLesson !== 'leave-channel') return
+    event.preventDefault()
+    setNotificationsOpen(false)
+    setChannelContext({ name, left: Math.min(event.clientX, window.innerWidth - 308), top: Math.min(event.clientY, window.innerHeight - 60) })
+    setChannelActionsOpen(true)
+  }
+
   const selectSearchSuggestion = (suggestion: SearchSuggestion) => {
     if (suggestion.type === 'channel') {
       completeSearchIfMatched(suggestion.name)
@@ -1078,6 +1134,10 @@ function App() {
       setMessages(makeChannelMessages(config, config.training.practice_channel))
       setChannelView('messages')
     }
+    if (lessons[lessonIndex + 1] === 'leave-channel') {
+      setDirectMessage(null)
+      joinChannel(config.training.practice_channel, true)
+    }
     setLessonIndex((value) => value + 1)
     setSearchOpen(false)
     setSearched(false)
@@ -1086,10 +1146,11 @@ function App() {
     setThreadOpen(false)
     setThreadMessage(null)
     setNotificationsOpen(false)
+    setChannelActionsOpen(false)
     setMentionMenuOpen(false)
     setSelectedMention(null)
     window.setTimeout(() => composerRef.current?.focus(), 100)
-  }, [activeLesson, allLessonsComplete, config, lessonIndex, lessons.length])
+  }, [activeLesson, allLessonsComplete, config, lessonIndex, lessons])
 
   useEffect(() => {
     if (!pendingAdvance || pendingAdvance !== activeLesson || !introComplete || finished) return
@@ -1193,7 +1254,7 @@ function App() {
               <div className="mobile-section-heading"><span>Channels</span><ChevronDown /></div>
               {joinedChannels.map((name) => {
                 const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
-                return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'mobile-target-channel' : ''}`} onClick={() => selectChannel(name)}><Hash /><span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
+                return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'mobile-target-channel' : ''} ${targetLesson === 'leave-channel' && name === config.training.practice_channel ? 'mobile-leave-channel' : ''}`} onClick={() => selectChannel(name)} onContextMenu={(event) => openChannelContextMenu(event, name)}><Hash /><span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
               })}
               <button onClick={() => { setDirectMessage(null); setChannelView('discover'); setSidebarOpen(false) }}><Plus /> <span>Add channels</span></button>
             </div>
@@ -1232,7 +1293,7 @@ function App() {
             <p title={`${defaultChannels.length} channels will be added by Hack Club Auth`}><ChevronDown size={14} /> Channels</p>
             {joinedChannels.map((name) => {
               const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
-              return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''}`} onClick={() => selectChannel(name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
+              return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''} ${targetLesson === 'leave-channel' && name === config.training.practice_channel ? 'leave-channel-sidebar target-sidebar' : ''}`} onClick={() => selectChannel(name)} onContextMenu={(event) => openChannelContextMenu(event, name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
             })}
             <button onClick={() => { setDirectMessage(null); setChannelView('discover'); setSidebarOpen(false) }}><Plus size={16} /> Add channels</button>
           </div>
@@ -1266,7 +1327,12 @@ function App() {
                 {notificationsOpen && <div className="notification-menu"><strong>Notify me about…</strong>{['All new messages', 'Mentions & DMs', 'Nothing'].map((mode) => <button key={mode} onClick={() => { setNotificationMode(mode); setNotificationsOpen(false); if (mode === 'Mentions & DMs') completeLesson('notifications') }}><span>{mode}</span>{notificationMode === mode && <Check size={17} />}</button>)}</div>}
               </div>
               <button aria-label="Search in channel"><Search size={19} /></button>
-              <button aria-label="More channel actions"><MoreHorizontal size={20} /></button>
+              <div className={`channel-actions-wrap ${targetLesson === 'leave-channel' && !directMessage && channel === config.training.practice_channel ? 'target-pulse' : ''}`}>
+                <button ref={channelActionsRef} className="channel-actions-trigger" aria-label="More channel actions" aria-haspopup="menu" aria-expanded={channelActionsOpen} aria-controls={channelActionsOpen ? 'channel-actions-menu' : undefined} disabled={activeLesson !== 'leave-channel' || Boolean(directMessage) || !joinedChannels.includes(channel)} onClick={() => { setNotificationsOpen(false); setChannelContext(null); setChannelActionsOpen((value) => !value) }}><MoreHorizontal size={20} /></button>
+                {channelActionsOpen && <div id="channel-actions-menu" className="channel-actions-menu" role="menu" aria-label="Channel actions" style={channelContext ? { position: 'fixed', left: channelContext.left, top: channelContext.top, right: 'auto' } : undefined}>
+                  <button className="leave-channel-action" role="menuitem" autoFocus onClick={leaveChannel}>Leave channel</button>
+                </div>}
+              </div>
             </div>
           </header>
           {!directMessage && <nav className="channel-tabs" aria-label="Channel tabs">

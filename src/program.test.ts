@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepSearchChannel, lessonIds, validateProgram } from './program'
+import { getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepChannel, lessonIds, validateProgram } from './program'
 
 const config = {
   program: { name: 'Stardance', slug: 'stardance', color: '#6c5ce7', logo: '/logo.svg', tagline: 'Build!' },
@@ -39,20 +39,22 @@ describe('program configuration', () => {
     expect(() => getProgramStep('/step/threads/extra')).toThrow('Invalid step URL')
   })
 
-  it('resolves channel-targeted search links with literal or encoded hashes', () => {
-    for (const path of ['/step/search+#stardance', '/step/search+%23stardance', '/step/search+stardance']) {
-      const url = new URL(path, 'https://onboarding.example')
-      expect(getProgramStep(url.pathname)).toBe('search')
-      expect(getProgramSlug(url.pathname)).toBe('slack')
-      expect(getStepSearchChannel(url.href)).toBe('stardance')
-    }
-    expect(getStepSearchChannel('https://onboarding.example/program/stardance/step/search+#new-channel')).toBe('new-channel')
-    expect(getStepSearchChannel('https://onboarding.example/step/search')).toBeNull()
-    expect(getStepSearchChannel('https://onboarding.example/slack#code')).toBeNull()
-    for (const suffix of ['', '#', '#two words', '%ZZ', '#../code']) {
-      expect(() => getStepSearchChannel(`https://onboarding.example/step/search+${suffix}`)).toThrow()
-    }
-  })
+  for (const lesson of ['search', 'leave-channel']) {
+    it(`resolves channel-targeted ${lesson} links with literal or encoded hashes`, () => {
+      for (const suffix of ['#stardance', '%23stardance', 'stardance']) {
+        const url = new URL(`/step/${lesson}+${suffix}`, 'https://onboarding.example')
+        expect(getProgramStep(url.pathname)).toBe(lesson)
+        expect(getProgramSlug(url.pathname)).toBe('slack')
+        expect(getStepChannel(url.href)).toBe('stardance')
+      }
+      expect(getStepChannel(`https://onboarding.example/program/stardance/step/${lesson}+#new-channel`)).toBe('new-channel')
+      expect(getStepChannel(`https://onboarding.example/step/${lesson}`)).toBeNull()
+      expect(getStepChannel('https://onboarding.example/slack#code')).toBeNull()
+      for (const suffix of ['', '#', '#two words', '%ZZ', '#../code']) {
+        expect(() => getStepChannel(`https://onboarding.example/step/${lesson}+${suffix}`)).toThrow()
+      }
+    })
+  }
 
   it('accepts known lesson IDs', () => {
     expect(validateProgram(config).program.name).toBe('Stardance')

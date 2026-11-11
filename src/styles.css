@@ -542,6 +542,7 @@ button { color: inherit; }
 /* Header controls are 28px outlined squares in Slack, not bare icons. */
 .header-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-left: 12px; }
 .header-actions > button,
+.channel-actions-wrap > button,
 .notification-wrap > button {
   height: 28px;
   min-width: 28px;
@@ -557,17 +558,19 @@ button { color: inherit; }
   cursor: pointer;
 }
 .header-actions > button:hover,
+.channel-actions-wrap > button:hover,
 .notification-wrap > button:hover { background: var(--hover-control); }
 .header-actions > button svg,
+.channel-actions-wrap > button svg,
 .notification-wrap > button svg { width: 17px; height: 17px; }
 .header-actions span { color: var(--fg); font-size: 13px; font-weight: 700; }
 
 .header-actions .huddle-button { padding-inline: 6px; }
 .header-actions .huddle-button:disabled { opacity: .45; cursor: default; }
 .header-actions .huddle-button.target-pulse { color: var(--success); }
-.notification-wrap { position: relative; }
+.notification-wrap, .channel-actions-wrap { position: relative; }
 
-.notification-menu {
+.notification-menu, .channel-actions-menu {
   position: absolute;
   z-index: 35;
   top: 34px;
@@ -579,7 +582,12 @@ button { color: inherit; }
   box-shadow: var(--shadow-menu);
 }
 .notification-menu > strong { display: block; height: 26px; padding: 4px 24px; color: var(--fg-quiet); font-size: 13px; font-weight: 400; line-height: 18px; }
-.notification-menu button { border: 0; width: 100%; height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; color: var(--fg); background: none; font-size: 15px; line-height: 28px; text-align: left; cursor: pointer; }
+.notification-menu button, .channel-actions-menu button { border: 0; width: 100%; height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; color: var(--fg); background: none; font-size: 15px; line-height: 28px; text-align: left; cursor: pointer; }
+.channel-actions-menu { z-index: 102; }
+.channel-actions-menu .leave-channel-action { color: #c01343; }
+:root[data-theme='dark'] .channel-actions-menu .leave-channel-action { color: #ff6b91; }
+.channel-actions-menu button:hover, .channel-actions-menu button:focus-visible { outline: none; background: var(--row-active-bg); }
+.channel-actions-trigger:disabled { cursor: default; }
 /* Slack fills this row #1264a3 with white text; a neutral wash was preferred. */
 .notification-menu button:hover { color: var(--fg); background: var(--row-active-bg); }
 
@@ -1519,8 +1527,9 @@ button { color: inherit; }
   .header-actions > button[aria-label='Search in channel'] { display: none; }
   .header-actions { gap: 4px; }
   .header-actions > button,
+  .channel-actions-wrap > button,
   .notification-wrap > button { width: 36px; height: 36px; border: 0; }
-  .notification-menu { position: fixed; top: 52px; right: 8px; width: calc(100vw - 16px); }
+  .notification-menu, .channel-actions-menu { position: fixed; top: 52px; right: 8px; width: calc(100vw - 16px); }
   .channel-tabs { display: none; }
   .channel-intro { padding: 24px 16px 16px; }
   .channel-intro h1 { font-size: 21px; }
