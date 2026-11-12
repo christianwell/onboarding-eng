@@ -13,6 +13,7 @@ import {
   CircleHelp,
   Clock3,
   FileText,
+  Forward,
   Hash,
   Headphones,
   House,
@@ -41,6 +42,7 @@ import confetti from 'canvas-confetti'
 import NumberFlow from '@number-flow/react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { createOnboardingTracker } from './analytics'
+import ForwardMessage from './ForwardMessage'
 import Huddle from './Huddle'
 import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepChannel, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
 
@@ -51,6 +53,7 @@ type Message = {
   color: string
   time: string
   body: string
+  forwarded?: Message
   reactions?: number
   replies?: number
   bot?: boolean
@@ -342,7 +345,8 @@ function App() {
   const [directMessage, setDirectMessage] = useState<string | null>(null)
   const [spamDelivered, setSpamDelivered] = useState(false)
   const [spamRead, setSpamRead] = useState(false)
-  const [reportMessageId, setReportMessageId] = useState<number | null>(null)
+  const [reportMessage, setReportMessage] = useState<Message | null>(null)
+  const [forwardMessage, setForwardMessage] = useState<Message | null>(null)
   const [reportStatus, setReportStatus] = useState<'none' | 'pending' | 'submitted' | 'cancelled'>('none')
   const [reportWithUsername, setReportWithUsername] = useState(false)
   const [draft, setDraft] = useState('')
@@ -440,6 +444,7 @@ function App() {
     [joinedChannels, recommendedChannels],
   )
   const report = config ? defaultSafetyReport : null
+  const reportMessageId = reportMessage?.id ?? null
   const spamSender = report?.spam.from.name ?? null
   const moderatorName = report?.moderator.name ?? null
   const searchMembers = useMemo<SimulatedPerson[]>(
@@ -483,10 +488,10 @@ function App() {
   const activeLesson = lessons[lessonIndex]
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
   const reportPhase: SafetyReportPhase | null = !report || activeLesson !== 'safety' ? null
-    : spamRead && directMessage === moderatorName ? reportStatus === 'pending' || reportStatus === 'submitted' ? 'submit' : 'send'
+    : spamRead && directMessage === moderatorName && (reportStatus === 'pending' || reportStatus === 'submitted') ? 'submit'
       : spamRead ? 'find'
         : 'notice'
-  const searchSpotlightMember = activeLesson === 'dms' ? 'Christian' : reportPhase === 'find' ? moderatorName : null
+  const searchSpotlightMember = activeLesson === 'dms' ? 'Christian' : null
   const spotlightMemberInResults = searchSuggestions.some((suggestion) => suggestion.type === 'member' && suggestion.member.name === searchSpotlightMember)
   const configuredLessonCopy = activeLesson
     ? reportPhase ? report!.steps[reportPhase] : config?.copy?.lessons?.[activeLesson] ?? defaultLessonCopy[activeLesson]
@@ -589,9 +594,8 @@ function App() {
             : activeLesson === 'threads' && threadOpen
               ? '.thread-composer'
               : reportPhase
-                ? reportPhase === 'send' ? '.target-composer'
-                  : reportPhase === 'submit' ? '.target-action'
-                    : reportPhase === 'find' ? isMobile && !sidebarOpen ? '.mobile-channel-back' : memberSearchSelector()
+                ? reportPhase === 'submit' ? '.target-action'
+                    : reportPhase === 'find' && directMessage === spamSender ? '.forward-message'
                       : isMobile && !sidebarOpen ? '.mobile-channel-back' : isMobile ? '.mobile-spam-dm' : '.spam-dm'
                 : activeLesson === 'dms'
                   ? directMessage === 'Christian' ? '.target-composer' : memberSearchSelector()
@@ -632,7 +636,6 @@ function App() {
         const guideAtTop = introComplete && (
           activeLesson === 'messages'
           || activeLesson === 'pings'
-          || reportPhase === 'send'
           || activeLesson === 'dms' && directMessage === 'Christian'
           || activeLesson === 'threads' && threadOpen
         )
@@ -738,7 +741,7 @@ function App() {
         return
       }
 
-      if (activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms' || reportPhase === 'send') {
+      if (activeLesson === 'messages' || activeLesson === 'pings' || activeLesson === 'dms') {
         setGuidePosition({
           left: Math.min(
             Math.max(12, rect.left + rect.width / 2 - guideWidth / 2),
@@ -786,7 +789,7 @@ function App() {
       scrollContainers.forEach((container) => container.removeEventListener('scroll', trackSidebarScroll))
       observer?.disconnect()
     }
-  }, [activeLesson, allComplete, channel, channelActionsOpen, channelContext, config, spotlightMemberInResults, directMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, threadOpen])
+  }, [activeLesson, allComplete, channel, channelActionsOpen, channelContext, config, spotlightMemberInResults, directMessage, forwardMessage, introComplete, isActiveComplete, notificationsOpen, reportPhase, searchOpen, searchQuery, sidebarOpen, spamDelivered, spamSender, threadOpen])
 
   useEffect(() => {
     if (!channelActionsOpen) return
@@ -882,7 +885,11 @@ function App() {
   const selectDirectMessage = (name: string) => {
     setDirectMessage(name)
     setChannelActionsOpen(false)
-    setDirectMessages(makeDirectMessages(name, config))
+    setDirectMessages(name === moderatorName && reportMessage
+      ? [...makeDirectMessages(name, config), { ...reportMessage, checkmark: reportStatus === 'submitted' }]
+      : makeDirectMessages(name, config))
+    setThreadOpen(false)
+    setThreadMessage(null)
     setSidebarOpen(false)
     setDraft('')
     if (name === spamSender) setSpamRead(true)
@@ -978,16 +985,24 @@ function App() {
     if (activeLesson === 'messages') completeLesson('messages')
     if (activeLesson === 'pings' && selectedMention === 'Nova' && body.includes('@Nova')) completeLesson('pings')
     if (activeLesson === 'dms' && directMessage === 'Christian') completeLesson('dms')
-    if (activeLesson === 'safety' && report && directMessage === moderatorName && reportStatus !== 'pending') {
-      setReportMessageId(message.id)
-      setReportWithUsername(false)
-      setReportStatus('none')
-      window.setTimeout(() => {
-        setReportStatus('pending')
-        setDirectMessages((current) => current.map((entry) => entry.id === message.id ? { ...entry, replies: 1 } : entry))
-      }, 600)
-    }
     setSelectedMention(null)
+  }
+
+  const forwardReport = (note: string) => {
+    if (!report || !forwardMessage) return
+    const message: Message = {
+      id: Date.now(), author: 'You', avatar: 'Y', color: config!.program.color,
+      time: 'now', body: note, forwarded: forwardMessage, replies: 1,
+    }
+    setDirectMessage(report.moderator.name)
+    setDirectMessages([...makeDirectMessages(report.moderator.name, config), message])
+    setReportMessage(message)
+    setReportWithUsername(false)
+    setReportStatus('pending')
+    setForwardMessage(null)
+    setThreadOpen(false)
+    setThreadMessage(null)
+    setDraft('')
   }
 
   const shroudMessage = (body: string): Message => ({
@@ -1003,7 +1018,7 @@ function App() {
   })
 
   const submitReport = () => {
-    if (!report || reportMessageId === null) return
+    if (!report || reportMessageId === null || reportStatus !== 'pending') return
     setReportStatus('submitted')
     setDirectMessages((current) => [
       ...current.map((entry) => entry.id === reportMessageId ? { ...entry, checkmark: true } : entry),
@@ -1013,7 +1028,7 @@ function App() {
   }
 
   const cancelReport = () => {
-    if (!report || reportMessageId === null) return
+    if (!report || reportMessageId === null || reportStatus !== 'pending') return
     setReportStatus('cancelled')
     setDirectMessages((current) => [...current, shroudMessage(report.moderator.prompt.cancelledConfirmation)])
   }
@@ -1404,6 +1419,7 @@ function App() {
                 <div className="message-content">
                   <div className="message-meta"><strong>{message.author}</strong>{message.bot && <span className="bot-label">APP</span>}<time>{message.time}</time>{message.ephemeral && <span className="ephemeral-label">Only visible to you</span>}</div>
                   <p>{renderMessageBody(message.body)}</p>
+                  {message.forwarded && <blockquote className="forwarded-message"><strong>{message.forwarded.author}</strong><time>{message.forwarded.time}</time><p>{renderMessageBody(message.forwarded.body)}</p></blockquote>}
                   {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
                   {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
                   {!directMessage && message.id === 2 && <div className="message-tools">
@@ -1433,12 +1449,17 @@ function App() {
                     </button>}
                   </div>}
                 </div>
-                <div className="message-hover-actions" aria-hidden="true"><button tabIndex={-1}>🙂</button><button tabIndex={-1} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle /></button><button tabIndex={-1}><MoreHorizontal /></button></div>
+                <div className="message-hover-actions">
+                  <button tabIndex={-1} aria-hidden="true">{message.author === spamSender && activeLesson === 'safety' ? <SmilePlus /> : '🙂'}</button>
+                  <button tabIndex={-1} aria-hidden="true" onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle /></button>
+                  {report && directMessage === spamSender && message.author === spamSender && activeLesson === 'safety' && reportStatus !== 'pending' && !isActiveComplete && <button className="forward-message" aria-label="Forward message" title="Forward message…" onClick={() => setForwardMessage(message)}><Forward size={18} /></button>}
+                  <button tabIndex={-1} aria-hidden="true"><MoreHorizontal /></button>
+                </div>
               </article>
             ))}
           </div>}
 
-          {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || reportPhase === 'send' || targetLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+          {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
             <div className="format-bar" role="toolbar" aria-label="Formatting">
               <button type="button" aria-label="Bold"><strong>B</strong></button>
               <button type="button" aria-label="Italic"><em>I</em></button>
@@ -1464,7 +1485,9 @@ function App() {
 
         {huddleConversation && <Huddle conversation={huddleConversation} onCancel={() => setHuddleConversation(null)} onJoin={() => { completeLesson('huddles'); setHuddleConversation(null) }} />}
 
-        {!allComplete && !huddleConversation && <>
+        {forwardMessage && report && <ForwardMessage message={forwardMessage} recipient={report.moderator} onCancel={() => setForwardMessage(null)} onForward={forwardReport} />}
+
+        {!allComplete && !huddleConversation && !forwardMessage && <>
           {(!spotlight || spotlightInPanel) && <div className="guide-dim" />}
           {spotlight && <>
             <motion.div
@@ -1525,7 +1548,7 @@ function App() {
 
         {threadOpen && threadMessage && <aside className="thread-panel">
           <header><div><strong>Thread</strong><span>{directMessage ?? `#${channel}`}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
-          <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p></div></article>
+          <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p>{threadMessage.forwarded && <blockquote className="forwarded-message"><strong>{threadMessage.forwarded.author}</strong><time>{threadMessage.forwarded.time}</time><p>{renderMessageBody(threadMessage.forwarded.body)}</p></blockquote>}</div></article>
           <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
           {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
             <article className="message compact shroud-prompt">
