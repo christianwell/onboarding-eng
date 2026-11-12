@@ -7,6 +7,7 @@
 - Study unfamiliar APIs or behavior as needed using existing repository patterns, dependency documentation, and authoritative sources. Keep research focused on the current task, then apply what you learned.
 - Make small, reversible decisions independently. Ask only when essential information is unavailable, requirements conflict, or an action needs permission. Do not invent product copy to fill gaps.
 - Make the smallest complete fix, inspect the final diff, and leave unrelated changes alone. Keep the user informed at meaningful milestones rather than asking approval for routine local work.
+- Agents must not edit README.md. Put agent guidance in AGENTS.md instead.
 - A request to change this repository authorizes committing and pushing that task’s changes to a feature branch and opening or updating its PR, unless the user asks for local-only work. Follow the Pull requests rules below without asking for separate permission to deliver the PR. Merging, deploying, destructive actions, and other shared-system changes still require explicit authorization. Report what was verified and the actual delivery state.
 
 ## Where to look
