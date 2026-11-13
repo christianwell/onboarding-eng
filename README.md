@@ -19,12 +19,6 @@
 <img width="1274" height="633" alt="image" src="https://github.com/user-attachments/assets/97fb27fc-5e46-4d72-920c-b9e2c46848f8" />
 
 
-## Browser tests
-
-Install Chromium with `npx playwright install chromium`, then run
-`npm run test:browser`. The tests start their own Vite server on port 5174 and
-use one browser worker.
-
 <h1 align="center">Contributors</h1>
 
 <p align="center">
