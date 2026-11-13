@@ -18,29 +18,6 @@
 </p>
 <img width="1274" height="633" alt="image" src="https://github.com/user-attachments/assets/97fb27fc-5e46-4d72-920c-b9e2c46848f8" />
 
-## Standalone steps
-
-Open `/step/<lesson>` to teach one lesson without the full onboarding flow.
-For channel search, use `/step/search+#stardance` (or `/step/search+%23stardance`).
-The task names that channel and completes when the visitor selects it from search.
-Program-specific links work too, such as `/program/stardance/step/search+#stardance-help`.
-
-For leaving a channel, use `/step/leave-channel+#stardance` (or
-`/step/leave-channel+%23stardance`). The simulator starts with that channel joined
-and completes only when the visitor leaves it. Without a suffix,
-`/step/leave-channel` uses the program's practice channel.
-
-Standalone steps try to close their tab after the completion animation. Open them
-with `window.open()` when automatic closing is needed; browsers may block closing
-manually opened tabs. If closing is blocked, the existing completion redirect runs,
-including an allowed `return_to` URL. Put query parameters before the `#channel`
-fragment, or use the encoded `%23channel` form.
-
-## Browser tests
-
-Install Chromium with `npx playwright install chromium`, then run
-`npm run test:browser`. The tests start their own Vite server on port 5174 and
-use one browser worker.
 
 <h1 align="center">Contributors</h1>
 
