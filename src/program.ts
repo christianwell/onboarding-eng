@@ -113,10 +113,10 @@ export interface ShroudPromptCopy {
 export interface SafetyReportConfig {
   spam: { from: SimulatedPerson & { app?: boolean }; message: string; time?: string }
   moderator: SimulatedPerson & { greeting?: string; prompt: ShroudPromptCopy }
-  steps: { notice: LessonCopy; find: LessonCopy; send: LessonCopy; submit: LessonCopy }
+  steps: { notice: LessonCopy; find: LessonCopy; submit: LessonCopy }
 }
 
-export const safetyReportSteps = ['notice', 'find', 'send', 'submit'] as const
+export const safetyReportSteps = ['notice', 'find', 'submit'] as const
 
 export const defaultSafetyReport: SafetyReportConfig = {
   spam: {
@@ -156,12 +156,7 @@ export const defaultSafetyReport: SafetyReportConfig = {
     find: {
       title: 'Messages like this aren’t allowed on the Slack',
       body: 'Let’s report it to the Fire Department, who are in charge of keeping the Slack a nice place.',
-      task: 'Go to the search bar and type @shroud.',
-    },
-    send: {
-      title: 'Tell us what happened',
-      body: 'Write who messaged you, what they said, and any other context you think is important. The more details you provide, the better!',
-      task: 'Send @shroud your report.',
+      task: 'Forward this message to @shroud.',
     },
     submit: {
       title: 'Anonymous, or with your name on it?',
