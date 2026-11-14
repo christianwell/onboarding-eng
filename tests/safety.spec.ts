@@ -69,7 +69,11 @@ test('dismissal, invalid recipients, and Cancel leave forwarding unfinished', as
   await page.keyboard.press('Tab')
   await expect(dialog.getByRole('button', { name: 'Forward', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(dialog.getByRole('link', { name: 'Read the Hack Club Code of Conduct ↗' })).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(dialog.getByRole('button', { name: 'Close forward message' })).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(dialog.getByRole('link', { name: 'Read the Hack Club Code of Conduct ↗' })).toBeFocused()
   await page.keyboard.press('Shift+Tab')
   await expect(dialog.getByRole('button', { name: 'Forward', exact: true })).toBeFocused()
   await dialog.getByRole('button', { name: 'Remove shroud', exact: true }).click()
@@ -81,6 +85,56 @@ test('dismissal, invalid recipients, and Cancel leave forwarding unfinished', as
   await expect(page.locator('.completion-modal')).toHaveCount(0)
   await expect(page.locator('.messages .forwarded-message')).toHaveCount(0)
 })
+
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  for (const narrow of [false, true]) {
+    test(`forwarding keeps step guidance and targets the next action (${reducedMotion}, ${narrow ? 'narrow' : 'desktop'})`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion })
+      if (narrow) await page.setViewportSize({ width: 340, height: 510 })
+      await page.goto(`/program/${narrow ? 'stardance' : 'slack'}/step/safety`)
+      if (narrow) await page.getByRole('button', { name: 'Open channel list' }).click()
+      await openJan(page)
+      await page.getByRole('button', { name: 'Forward message', exact: true }).click()
+      const dialog = page.getByRole('dialog', { name: 'Forward message', exact: true })
+      const guide = dialog.getByRole('region', { name: /onboarding guide/ })
+      await expect(guide).toBeVisible()
+      await expect(guide.locator('.guide-step')).toHaveAttribute('aria-label', 'Step 1 of 2')
+      await expect(guide.locator('.task-box')).toHaveText('YOUR TASKForward this message to @shroud.')
+      await expect.poll(() => guide.locator('.task-box').evaluate((task) => {
+        const rect = task.getBoundingClientRect()
+        const card = task.closest('.coach')!.getBoundingClientRect()
+        return rect.top >= card.top && rect.bottom <= card.bottom && card.top >= 0 && card.bottom <= innerHeight
+      })).toBe(true)
+      const target = dialog.locator('.forward-target')
+      await expect(target).toHaveClass(/forward-to/)
+      const pulse = () => target.evaluate((element) => getComputedStyle(element, '::after').boxShadow)
+      if (reducedMotion === 'no-preference') {
+        const initial = await pulse()
+        await expect.poll(pulse).not.toBe(initial)
+      } else {
+        await expect.poll(() => target.evaluate((element) => parseFloat(getComputedStyle(element, '::after').animationDuration))).toBeLessThan(0.001)
+      }
+      await dialog.getByRole('textbox', { name: 'Forward to' }).fill('@nobody')
+      await expect(target).toHaveClass(/forward-to/)
+      await dialog.getByRole('textbox', { name: 'Forward to' }).fill('@shroud')
+      await expect(target).toHaveAccessibleName('shroud APP')
+      await dialog.getByRole('button', { name: 'shroud APP', exact: true }).click()
+      await expect(target).toHaveAccessibleName('Forward')
+      await expect(guide).toBeVisible()
+      await dialog.getByRole('button', { name: 'Remove shroud', exact: true }).click()
+      await expect(target).toHaveClass(/forward-to/)
+      await dialog.getByRole('textbox', { name: 'Forward to' }).fill('shroud')
+      await dialog.getByRole('button', { name: 'shroud APP', exact: true }).click()
+      await dialog.getByRole('button', { name: 'Forward', exact: true }).click()
+      await expect(dialog).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'Anonymous, or with your name on it?', exact: false })).toBeVisible()
+      await expect(page.locator('.completion-modal')).toHaveCount(0)
+      await page.getByRole('button', { name: '1 reply View thread' }).click()
+      await page.getByRole('button', { name: 'Submit', exact: true }).click()
+      await expect(page.locator('.completion-modal')).toBeVisible()
+    })
+  }
+}
 
 test('Shroud Cancel allows retry, switching conversations preserves the pending report, and reload starts fresh', async ({ page }) => {
   await page.goto('/step/safety')
