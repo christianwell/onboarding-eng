@@ -1216,6 +1216,37 @@ function App() {
 
   if (!config) return <main className="boot-overlay"><BootScreen /></main>
 
+  const guideCard = <motion.aside
+    className={`coach coach-${activeLesson} ${reportPhase ? `coach-report-${reportPhase}` : ''} ${introComplete ? 'coach-active' : 'coach-intro'}`}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: booting ? 0 : 1 }}
+    transition={{ duration: 0.15 }}
+    role={forwardMessage ? 'region' : 'dialog'}
+    aria-live="polite"
+    aria-label={`${config.program.name} onboarding guide`}
+  >
+    <div className="coach-brand">
+      <span className="guide-brand"><img src={guideAssets.flag} alt="Hack Club" /></span>
+      <span className="guide-step" aria-label={introComplete ? `Step ${lessonIndex + 1} of ${lessons.length + 1}` : undefined}>{introComplete ? <><NumberFlow value={lessonIndex + 1} />/{lessons.length + 1}</> : 'Welcome'}</span>
+    </div>
+    <div className="guide-mascot"><img src={guideAssets.mascot} alt="" draggable="false" /></div>
+    <div className="progress-track"><i style={{ width: introComplete ? `${guideProgress}%` : '0%' }} /></div>
+
+    {!introComplete ? <div className="lesson-card guide-intro">
+      <h2><span>👋</span>Let’s get you settled in</h2>
+      <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! This interactive guide will get you familiar with Slack.</p>
+    </div> : <div className="lesson-card">
+      <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
+      <p className="lesson-body">{activeCopy!.body}</p>
+      {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
+      {reportPhase && !isActiveComplete && <a className="conduct-link" href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>}
+      {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong></div></div>}
+    </div>}
+    {!introComplete && <div className="guide-actions">
+      <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button>
+    </div>}
+  </motion.aside>
+
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence>
@@ -1485,7 +1516,7 @@ function App() {
 
         {huddleConversation && <Huddle conversation={huddleConversation} onCancel={() => setHuddleConversation(null)} onJoin={() => { completeLesson('huddles'); setHuddleConversation(null) }} />}
 
-        {forwardMessage && report && <ForwardMessage message={forwardMessage} recipient={report.moderator} onCancel={() => setForwardMessage(null)} onForward={forwardReport} />}
+        {forwardMessage && report && <ForwardMessage message={forwardMessage} recipient={report.moderator} onCancel={() => setForwardMessage(null)} onForward={forwardReport}>{guideCard}</ForwardMessage>}
 
         {!allComplete && !huddleConversation && !forwardMessage && <>
           {(!spotlight || spotlightInPanel) && <div className="guide-dim" />}
@@ -1513,36 +1544,7 @@ function App() {
             animate={{ x: guidePosition?.left ?? 0, y: guidePosition?.top ?? 0 }}
             transition={hasPlaced ? guideSpring : { duration: 0 }}
           >
-            <motion.aside
-              className={`coach coach-${activeLesson} ${reportPhase ? `coach-report-${reportPhase}` : ''} ${introComplete ? 'coach-active' : 'coach-intro'}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: booting ? 0 : 1 }}
-              transition={{ duration: 0.15 }}
-              role="dialog"
-              aria-live="polite"
-              aria-label={`${config.program.name} onboarding guide`}
-            >
-              <div className="coach-brand">
-                <span className="guide-brand"><img src={guideAssets.flag} alt="Hack Club" /></span>
-                <span className="guide-step" aria-label={introComplete ? `Step ${lessonIndex + 1} of ${lessons.length + 1}` : undefined}>{introComplete ? <><NumberFlow value={lessonIndex + 1} />/{lessons.length + 1}</> : 'Welcome'}</span>
-              </div>
-              <div className="guide-mascot"><img src={guideAssets.mascot} alt="" draggable="false" /></div>
-              <div className="progress-track"><i style={{ width: introComplete ? `${guideProgress}%` : '0%' }} /></div>
-
-              {!introComplete ? <div className="lesson-card guide-intro">
-                <h2><span>👋</span>Let’s get you settled in</h2>
-                <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! This interactive guide will get you familiar with Slack.</p>
-              </div> : <div className="lesson-card">
-                <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
-                <p className="lesson-body">{activeCopy!.body}</p>
-                {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
-                {reportPhase && !isActiveComplete && <a className="conduct-link" href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>}
-                {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong></div></div>}
-              </div>}
-              {!introComplete && <div className="guide-actions">
-                <button className="next-button" onClick={startOnboarding}>Let’s get started <ChevronRight size={16} /></button>
-              </div>}
-            </motion.aside>
+            {guideCard}
           </motion.div>
         </>}
 

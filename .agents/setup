@@ -7,10 +7,14 @@ step() {
 
 step "Installing the repository Node.js version"
 required_node="$(cat .node-version)"
+export PATH="$HOME/.local/bin:$PATH"
 if [[ "$(node --version)" != "v${required_node}" ]]; then
-  npm install --global n
-  n "$required_node"
+  npm install --prefix "$HOME/.local/share/onboarding-node" n
+  N_PREFIX="$HOME/.local" "$HOME/.local/share/onboarding-node/node_modules/.bin/n" "$required_node"
   hash -r
+fi
+if ! grep -Fqx 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bash_profile" 2>/dev/null; then
+  printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bash_profile"
 fi
 
 step "Installing locked npm dependencies"
