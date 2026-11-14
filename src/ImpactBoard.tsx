@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ArrowUpRight, BarChart3, Flag } from 'lucide-react'
+import { ArrowUpRight, BarChart3, BookOpen, ChevronRight, Flag, Table2 } from 'lucide-react'
 import { boardMetrics, boardMonths, boardPeriod, boardSnapshot, nemoSource } from './board-data'
 import './impact-board.css'
 
@@ -9,12 +9,26 @@ export default function ImpactBoard() {
   useEffect(() => { document.title = 'Before-and-after impact board · Hack Club' }, [])
 
   return <main className="impact-board">
+    <aside className="board-sidebar" aria-label="Board navigation">
+      <a className="board-brand" href={`${import.meta.env.BASE_URL}slack`}><span><BarChart3 aria-hidden="true" /></span><div><strong>Hack Club</strong><small>welcome.hackclub.com</small></div></a>
+      <nav aria-label="Board sections">
+        <p>Journey</p>
+        <a href="#board-overview" aria-current="page"><BarChart3 aria-hidden="true" />Before-and-after impact board</a>
+        <div className="board-nav-sub">
+          <a href="#board-launch-title"><Flag aria-hidden="true" />Launch evidence</a>
+          <a href="#board-history-title"><Table2 aria-hidden="true" />Monthly history</a>
+          <a href="#board-method-title"><BookOpen aria-hidden="true" />Sources & definitions</a>
+        </div>
+      </nav>
+      <a className="board-nemo-link" href="https://nemo.hackclub.com"><ArrowUpRight aria-hidden="true" />Nemo</a>
+    </aside>
+    <div className="board-inset">
     <header className="board-header">
-      <a href={`${import.meta.env.BASE_URL}slack`}><BarChart3 aria-hidden="true" /><strong>Hack Club <span>/ welcome</span></strong></a>
+      <div className="board-breadcrumb"><BarChart3 aria-hidden="true" /><span>Hack Club</span><ChevronRight aria-hidden="true" /><strong>welcome</strong></div>
       <a href="https://github.com/christianwell/onboarding-eng">Repository <ArrowUpRight aria-hidden="true" /></a>
     </header>
     <div className="board-content">
-      <div className="board-heading">
+      <div className="board-heading" id="board-overview">
         <p className="board-eyebrow">welcome.hackclub.com · /board</p>
         <h1>Before-and-after impact board</h1>
         <p>Monthly onboarding metrics · January–November 2026</p>
@@ -67,6 +81,7 @@ export default function ImpactBoard() {
           : <a href="https://github.com/christianwell/onboarding-eng/pull/35">Instrumentation history <ArrowUpRight aria-hidden="true" /></a>}</dd></div>)}</dl>
       </section>
       <footer className="board-footer"><p>Data needed: approved monthly Nemo aggregates with coverage, denominators and observation watermark; Plausible monthly full-guide events with consistent definitions; confirmed launch date.</p><a href="https://nemo.hackclub.com">Nemo <ArrowUpRight aria-hidden="true" /></a></footer>
+    </div>
     </div>
   </main>
 }
