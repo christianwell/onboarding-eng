@@ -1060,6 +1060,12 @@ button { color: inherit; }
 .forward-modal button:disabled { opacity: .5; cursor: default; }
 .forward-target { position: relative; box-shadow: 0 0 0 2px rgba(236, 55, 80, .95); }
 .forward-target::after { content: ''; position: absolute; inset: -4px; border-radius: inherit; pointer-events: none; animation: hcSpotRing 1.9s ease-out infinite; }
+.forward-modal .forward-target { padding-left: 44px; }
+.forward-target .forward-arrow { position: absolute; z-index: 1; left: 12px; top: 50%; width: 18px; height: 30px; transform: translateY(-50%) rotate(-90deg); }
+.forward-target .forward-arrow svg { flex-shrink: 0; width: 18px; height: 14px; margin-top: -6px; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .forward-target .forward-arrow svg { animation: none; }
+}
 @media (max-width: 980px) {
   .forward-layout { flex-direction: column-reverse; align-items: stretch; gap: 12px; width: min(520px, 100%); }
   .forward-guide { flex: 0 0 auto; }

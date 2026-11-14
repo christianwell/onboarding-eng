@@ -1,5 +1,5 @@
 import { KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { SimulatedPerson } from './program'
 
 export default function ForwardMessage({ message, recipient, onCancel, onForward, children }: {
@@ -14,6 +14,7 @@ export default function ForwardMessage({ message, recipient, onCancel, onForward
   const [note, setNote] = useState('')
   const dialogRef = useRef<HTMLFormElement>(null)
   const matches = `${recipient.name} ${recipient.username}`.toLowerCase().includes(query.trim().replace(/^@/, '').toLowerCase())
+  const arrow = <span className="guide-arrow forward-arrow" aria-hidden="true">{[0, 1, 2].map((item) => <ChevronDown key={item} />)}</span>
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
@@ -45,13 +46,14 @@ export default function ForwardMessage({ message, recipient, onCancel, onForward
       <div className="forward-modal">
         <header><h2>Forward this message</h2><button type="button" aria-label="Close forward message" onClick={onCancel}><X /></button></header>
         <div className={`forward-to ${!selected && !(query.trim() && matches) ? 'forward-target' : ''}`}>
+          {!selected && !(query.trim() && matches) && arrow}
           {selected ? <button type="button" className="forward-selected" aria-label={`Remove ${recipient.name}`} onClick={() => { setSelected(false); setQuery(''); requestAnimationFrame(() => dialogRef.current?.querySelector('input')?.focus()) }}><strong>{recipient.name}</strong><span className="bot-label">APP</span><X size={16} /></button>
             : <input aria-label="Forward to" placeholder="Search for channel or person" value={query} onChange={(event) => setQuery(event.target.value)} />}
         </div>
-        {!selected && query.trim() && matches && <button type="button" className="forward-recipient forward-target" onClick={() => { setSelected(true); dialogRef.current?.querySelector('textarea')?.focus() }}><strong>{recipient.name}</strong>{' '}<span className="bot-label">APP</span></button>}
+        {!selected && query.trim() && matches && <button type="button" className="forward-recipient forward-target" onClick={() => { setSelected(true); dialogRef.current?.querySelector('textarea')?.focus() }}>{arrow}<strong>{recipient.name}</strong>{' '}<span className="bot-label">APP</span></button>}
         <textarea aria-label="Add a note" placeholder="Add a message, if you’d like." value={note} onChange={(event) => setNote(event.target.value)} />
         <blockquote className="forwarded-message"><strong>{message.author}</strong><time>{message.time}</time><p>{message.body}</p></blockquote>
-        <footer><button type="button" className="forward-cancel" onClick={onCancel}>Cancel</button><button className={`block-button primary ${selected ? 'forward-target' : ''}`} disabled={!selected}>Forward</button></footer>
+        <footer><button type="button" className="forward-cancel" onClick={onCancel}>Cancel</button><button className={`block-button primary ${selected ? 'forward-target' : ''}`} disabled={!selected}>{selected && arrow}Forward</button></footer>
       </div>
       <div className="forward-guide">{children}</div>
     </form>
