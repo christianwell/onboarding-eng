@@ -598,7 +598,7 @@ function App() {
                     : reportPhase === 'find' && directMessage === spamSender ? '.forward-message'
                       : isMobile && !sidebarOpen ? '.mobile-channel-back' : isMobile ? '.mobile-spam-dm' : '.spam-dm'
                 : activeLesson === 'dms'
-                  ? directMessage === 'Christian' ? '.target-composer' : memberSearchSelector()
+                  ? directMessage === 'Christian' && !sidebarOpen ? '.target-composer' : memberSearchSelector()
                   : activeLesson === 'channels'
                     ? '.target-sidebar'
                     : activeLesson === 'messages' || activeLesson === 'pings'
@@ -633,7 +633,7 @@ function App() {
         const viewportHeight = viewport?.height ?? window.innerHeight
         const safeBottom = parseFloat(getComputedStyle(guide).scrollMarginBottom) || 8
         const guideBottomInset = sidebarOpen ? 70 + safeBottom : safeBottom
-        const guideAtTop = introComplete && (
+        const guideAtTop = introComplete && !sidebarOpen && (
           activeLesson === 'messages'
           || activeLesson === 'pings'
           || activeLesson === 'dms' && directMessage === 'Christian'
