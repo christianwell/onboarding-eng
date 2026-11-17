@@ -331,7 +331,7 @@ function ReplyFacepile() {
   </span>
 }
 
-function App() {
+function App({ onDemoComplete }: { onDemoComplete?: () => void } = {}) {
   const [config, setConfig] = useState<ProgramConfig | null>(null)
   const [introComplete, setIntroComplete] = useState(false)
   const [lessonIndex, setLessonIndex] = useState(0)
@@ -398,9 +398,9 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
-    loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
+    loadProgram(onDemoComplete ? 'slack' : getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
       if (cancelled) return
-      const step = getProgramStep(window.location.pathname)
+      const step = onDemoComplete ? 'threads' : getProgramStep(window.location.pathname)
       const stepChannel = getStepChannel(window.location.href)
       const searchTarget = step === 'search' ? stepChannel : null
       if (step !== null) {
@@ -418,18 +418,18 @@ function App() {
       setChannel(initialChannel)
       setJoinedChannels([...new Set([...getDefaultChannels(loaded), ...(step === 'leave-channel' ? [initialChannel] : [])])])
       setMessages(makeChannelMessages(loaded, initialChannel))
-      document.title = `${loaded.program.name} · Slack Flight School`
+      if (!onDemoComplete) document.title = `${loaded.program.name} · Slack Flight School`
     }).catch(() => {
       if (!cancelled) window.location.replace('https://hackclub.com/')
     })
     return () => { cancelled = true }
-  }, [])
+  }, [onDemoComplete])
 
-  const onboardingTracker = useMemo(() => config ? createOnboardingTracker(
+  const onboardingTracker = useMemo(() => config && !onDemoComplete ? createOnboardingTracker(
     config.program.slug,
     getProgramStep(window.location.pathname) === null ? 'full_guide' : 'single_lesson',
     config.training.lessons.length,
-  ) : null, [config])
+  ) : null, [config, onDemoComplete])
 
   useEffect(() => {
     onboardingTracker?.view()
@@ -546,6 +546,10 @@ function App() {
 
   useEffect(() => {
     if (!allComplete || !config) return
+    if (onDemoComplete) {
+      onDemoComplete()
+      return
+    }
 
     onboardingTracker?.complete(returnsToFlow ? 'return' : 'auth')
     const completion = {
@@ -567,7 +571,7 @@ function App() {
       stopFireworks()
       window.clearTimeout(redirect)
     }
-  }, [allComplete, completionUrl, config, returnsToFlow, onboardingTracker])
+  }, [allComplete, completionUrl, config, returnsToFlow, onboardingTracker, onDemoComplete])
 
   useLayoutEffect(() => {
     if (allComplete) return
@@ -1638,7 +1642,7 @@ function App() {
           </div>}
         </section></div>}
 
-        {allComplete && <div className="modal-backdrop completion-backdrop"><section className="completion-modal">
+        {allComplete && !onDemoComplete && <div className="modal-backdrop completion-backdrop"><section className="completion-modal">
           <div className="completion-mark"><Check size={30} /></div>
           <p className="completion-step">Step {lessons.length + 1} of {lessons.length + 1} · Complete</p>
           <h1>Congrats!<br /><span>You’ve learned Slack.</span></h1>

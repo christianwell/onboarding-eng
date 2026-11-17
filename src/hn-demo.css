@@ -1,0 +1,38 @@
+.hn-entry {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #fff5f5;
+  color: #1d1c1d;
+  overflow-y: auto;
+}
+
+.hn-card {
+  width: min(100%, 540px);
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid #e8dada;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 12px 40px #45131c0a;
+}
+
+.hn-logo { display: block; margin-bottom: 24px; }
+.hn-eyebrow { color: #a51e35; font-weight: 700; font-size: 14px; }
+.hn-card h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.15; margin: 16px 0 24px; }
+.hn-card h1:focus { outline: none; }
+.hn-card p { line-height: 1.6; }
+.hn-card .next-button {
+  margin-top: 16px;
+  min-height: 48px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #c9213b;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hn-card .next-button:hover { background: #a51e35; color: white; }
+.hn-card button:focus-visible { outline: 3px solid #1d1c1d; outline-offset: 4px; }
