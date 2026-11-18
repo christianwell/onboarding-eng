@@ -16,6 +16,12 @@ async function forwardToShroud(page: Page, note = '') {
   const dialog = page.getByRole('dialog', { name: 'Forward message', exact: true })
   await dialog.getByRole('textbox', { name: 'Forward to' }).fill('@shroud')
   await dialog.getByRole('button', { name: 'shroud APP', exact: true }).click()
+  // Do not let Playwright's click auto-scroll hide an offscreen primary action.
+  await expect.poll(() => dialog.getByRole('button', { name: 'Forward', exact: true }).evaluate((button) => {
+    const rect = button.getBoundingClientRect()
+    return rect.top >= 0 && rect.bottom <= innerHeight
+      && button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+  })).toBe(true)
   if (note) await dialog.getByRole('textbox', { name: 'Add a note' }).fill(note)
   await dialog.getByRole('button', { name: 'Forward', exact: true }).click()
   await expect(page.locator('.channel-header h2')).toHaveText('shroud')
