@@ -689,7 +689,7 @@ function App() {
       // The search panel owns the top of the window whenever it is open, so the
       // card parks bottom-left in every state — including once the lesson has
       // auto-completed, which otherwise centres it straight onto the results.
-      const bottomLeft = { left: 12, top: Math.max(60, window.innerHeight - guideHeight - 12) }
+      const bottomLeft = { left: 12, top: Math.max(12, window.innerHeight - guideHeight - 12) }
       const bottomRight = { left: Math.max(12, window.innerWidth - guideWidth - 12), top: bottomLeft.top }
       const readingDirectMessage = Boolean(reportPhase && directMessage && !searchOpen)
 
@@ -713,16 +713,16 @@ function App() {
         return
       }
 
-      // A new DM may be below the channel list's scrollport. Reveal it when
-      // entering the step, before measuring the spotlight and guide position.
-      const targetSidebar = target.closest<HTMLElement>('.sidebar')
-      if (revealTarget && targetSidebar) {
+      // Reveal a new DM in the sidebar, or its forwarding control in a short
+      // conversation, before measuring the spotlight and guide position.
+      const targetScrollContainer = target.closest<HTMLElement>(reportPhase === 'find' ? '.sidebar, .messages' : '.sidebar')
+      if (revealTarget && targetScrollContainer) {
         const targetRect = target.getBoundingClientRect()
-        const sidebarRect = targetSidebar.getBoundingClientRect()
-        const topLimit = sidebarRect.top + 24
-        const bottomLimit = sidebarRect.bottom - 24
-        if (targetRect.top < topLimit) targetSidebar.scrollTop -= topLimit - targetRect.top
-        else if (targetRect.bottom > bottomLimit) targetSidebar.scrollTop += targetRect.bottom - bottomLimit
+        const containerRect = targetScrollContainer.getBoundingClientRect()
+        const topLimit = containerRect.top + 24
+        const bottomLimit = containerRect.bottom - 24
+        if (targetRect.top < topLimit) targetScrollContainer.scrollTop -= topLimit - targetRect.top
+        else if (targetRect.bottom > bottomLimit) targetScrollContainer.scrollTop += targetRect.bottom - bottomLimit
       }
       const rect = target.getBoundingClientRect()
       setSpotlight(skipRing ? null : ringInPanel || insideThreadPanel
@@ -737,6 +737,14 @@ function App() {
         return
       }
       if (searchOpen || (activeLesson === 'dms' && directMessage !== 'Christian') || reportPhase === 'find') {
+        // On short laptops the bottom-right card reaches up into the message
+        // toolbar. Keep the whole toolbar clear, not just its Forward button.
+        if (readingDirectMessage && reportPhase === 'find') {
+          const toolbar = target.closest('.message-hover-actions')?.getBoundingClientRect() ?? rect
+          if (bottomRight.top < toolbar.bottom + 24 && bottomRight.top + guideHeight > toolbar.top - 24) {
+            bottomRight.left = Math.max(12, toolbar.left - guideWidth - 24)
+          }
+        }
         setGuidePosition(readingDirectMessage ? bottomRight : bottomLeft)
         return
       }
@@ -774,6 +782,7 @@ function App() {
     const trackSidebarScroll = () => positionGuide()
     const frame = requestAnimationFrame(revealAndPositionGuide)
     window.addEventListener('resize', revealAndPositionGuide)
+    document.fonts.addEventListener('loadingdone', revealAndPositionGuide)
     window.visualViewport?.addEventListener('resize', revealAndPositionGuide)
     window.visualViewport?.addEventListener('scroll', trackSidebarScroll)
     const scrollContainers = document.querySelectorAll('.sidebar, .mobile-home-list, .messages')
@@ -784,6 +793,7 @@ function App() {
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', revealAndPositionGuide)
+      document.fonts.removeEventListener('loadingdone', revealAndPositionGuide)
       window.visualViewport?.removeEventListener('resize', revealAndPositionGuide)
       window.visualViewport?.removeEventListener('scroll', trackSidebarScroll)
       scrollContainers.forEach((container) => container.removeEventListener('scroll', trackSidebarScroll))
