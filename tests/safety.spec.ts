@@ -5,6 +5,23 @@ async function openJan(page: Page) {
   await expect(page.locator('.messages')).toContainText("You're stinky and ugly!")
 }
 
+test('member counts belong to channels, not private conversations', async ({ page }) => {
+  await page.goto('/slack/step/safety')
+  const header = page.locator('.channel-header')
+  await expect(header.getByRole('button', { name: /82,896/ })).toBeVisible()
+  await openJan(page)
+  await expect(header).not.toContainText('82,896')
+  await expect(header).toContainText('A private conversation with Jan adultman.')
+  await page.getByRole('button', { name: 'Nova', exact: true }).click()
+  await expect(header).not.toContainText('82,896')
+  await expect(header).toContainText('A private conversation with Nova.')
+  await page.locator('#workspace-sidebar').getByRole('button', { name: 'lounge', exact: false }).click()
+  await expect(header.getByRole('button', { name: /82,896/ })).toBeVisible()
+  await page.reload()
+  await openJan(page)
+  await expect(header).not.toContainText('82,896')
+})
+
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1272, height: 581 }, { width: 913, height: 338 }]) {
   test(`forwarding stays reachable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport)

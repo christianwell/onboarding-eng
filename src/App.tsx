@@ -12,12 +12,16 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  Code,
   FileText,
   Forward,
   Hash,
   Headphones,
   House,
+  Link,
+  List,
   ListFilter,
+  ListOrdered,
   Menu,
   MessageCircle,
   MessagesSquare,
@@ -25,12 +29,14 @@ import {
   Moon,
   MoreHorizontal,
   Plus,
+  Quote,
   Search,
   Send,
   Settings,
   ShieldCheck,
   SmilePlus,
   Sparkles,
+  SquareCode,
   SquarePen,
   Star,
   Sun,
@@ -1243,12 +1249,12 @@ function App() {
     <div className="progress-track"><i style={{ width: introComplete ? `${guideProgress}%` : '0%' }} /></div>
 
     {!introComplete ? <div className="lesson-card guide-intro">
-      <h2><span>👋</span>Let’s get you settled in</h2>
+      <h2>Let’s get you settled in</h2>
       <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! This interactive guide will get you familiar with Slack.</p>
     </div> : <div className="lesson-card">
-      <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
+      <h2>{activeCopy!.title}</h2>
       <p className="lesson-body">{activeCopy!.body}</p>
-      {!isActiveComplete && <div className="task-box"><span><img src={`${import.meta.env.BASE_URL}guide-rocket.png`} alt="" /></span><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
+      {!isActiveComplete && <div className="task-box"><div><small>YOUR TASK</small><strong>{activeCopy!.task}</strong></div></div>}
       {reportPhase && !isActiveComplete && <a className="conduct-link" href="https://hackclub.com/conduct/" target="_blank" rel="noreferrer">Read the Hack Club Code of Conduct ↗</a>}
       {isActiveComplete && <div className="success-box"><Check /><div><strong>Mission complete!</strong></div></div>}
     </div>}
@@ -1369,9 +1375,9 @@ function App() {
         <section className={`conversation ${directMessage ? 'direct-conversation' : ''} ${reportPhase === 'find' && directMessage === spamSender || reportPhase === 'submit' ? 'reading-report-dm' : ''}`}>
           <header className="channel-header">
             <button className="mobile-channel-back" aria-label="Open channel list" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><ChevronLeft /></button>
-            <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} <span>{directMessage ?? channel}</span></h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
+            <div className="channel-heading">{!directMessage && <button aria-label="Star channel"><Star size={17} /></button>}<h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} <span>{directMessage ?? channel}</span></h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
             <div className="header-actions">
-              <button><UserRound size={17} /><span>82,896</span></button>
+              {!directMessage && <button className="channel-member-count" aria-label="82,896 members"><UserRound size={17} /><span>82,896</span></button>}
               <button
                 className={`huddle-button ${targetLesson === 'huddles' ? 'target-pulse' : ''}`}
                 aria-label={defaultLessonCopy.huddles.title}
@@ -1507,13 +1513,13 @@ function App() {
               <button type="button" aria-label="Underline"><span className="underline">U</span></button>
               <button type="button" aria-label="Strikethrough"><span className="strike">S</span></button>
               <i />
-              <button type="button" aria-label="Link">🔗</button>
-              <button type="button" aria-label="Ordered list">1≡</button>
-              <button type="button" aria-label="Bulleted list">•≡</button>
+              <button type="button" aria-label="Link"><Link /></button>
+              <button type="button" aria-label="Ordered list"><ListOrdered /></button>
+              <button type="button" aria-label="Bulleted list"><List /></button>
               <i />
-              <button type="button" aria-label="Blockquote">❯</button>
-              <button type="button" aria-label="Code">{'<>'}</button>
-              <button type="button" aria-label="Code block">▣</button>
+              <button type="button" aria-label="Blockquote"><Quote /></button>
+              <button type="button" aria-label="Code"><Code /></button>
+              <button type="button" aria-label="Code block"><SquareCode /></button>
               <span />
             </div>
             <div className="compose-row"><input ref={composerRef} value={draft} onChange={(event) => updateDraft(event.target.value, event.target.selectionStart ?? event.target.value.length)} onKeyDown={handleComposerKeyDown} placeholder={directMessage ? `Message ${directMessage}` : `Message #${channel}`} aria-label={directMessage ? `Message ${directMessage}` : `Message ${channel}`} aria-autocomplete="list" aria-controls={mentionMenuOpen ? 'mention-suggestions' : undefined} aria-expanded={mentionMenuOpen} /></div>
@@ -1595,12 +1601,12 @@ function App() {
               <button type="button" aria-label="Underline"><span className="underline">U</span></button>
               <button type="button" aria-label="Strikethrough"><span className="strike">S</span></button>
               <i />
-              <button type="button" aria-label="Link">🔗</button>
-              <button type="button" aria-label="Ordered list">1≡</button>
-              <button type="button" aria-label="Bulleted list">•≡</button>
+              <button type="button" aria-label="Link"><Link /></button>
+              <button type="button" aria-label="Ordered list"><ListOrdered /></button>
+              <button type="button" aria-label="Bulleted list"><List /></button>
               <i />
-              <button type="button" aria-label="Code">{'<>'}</button>
-              <button type="button" aria-label="Code block">▣</button>
+              <button type="button" aria-label="Code"><Code /></button>
+              <button type="button" aria-label="Code block"><SquareCode /></button>
               <span />
             </div>
             <div className="compose-row"><input value={threadDraft} onChange={(event) => setThreadDraft(event.target.value)} placeholder={`Reply to ${threadMessage.author}…`} aria-label={`Reply to ${threadMessage.author}`} autoFocus /></div>

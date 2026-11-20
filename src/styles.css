@@ -670,7 +670,7 @@ button { color: inherit; }
 
 .message { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 8px; padding: 8px 20px; }
 .message:hover { background: var(--content-hover); }
-.avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-lg); color: #fff; font-size: 15px; font-weight: 900; }
+.avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-sm); color: #fff; font-size: 15px; font-weight: 700; }
 .avatar, .search-avatar { position: relative; }
 .avatar > img, .dm-dot > img, .search-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .message-content { min-width: 0; margin-top: -4px; }
@@ -819,8 +819,9 @@ button { color: inherit; }
 .composer:focus-within { border-color: var(--fg-muted); }
 
 .format-bar { height: 38px; display: flex; align-items: center; overflow: hidden; padding: 4px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; color: var(--fg-soft); }
-.format-bar button { width: 28px; height: 28px; flex: 0 0 28px; margin: 2px; padding: 2px; border: 0; border-radius: 50%; display: grid; place-items: center; color: inherit; background: none; font-size: 15px; cursor: pointer; }
+.format-bar button { width: 28px; height: 28px; flex: 0 0 28px; margin: 2px; padding: 2px; border: 0; border-radius: var(--radius-sm); display: grid; place-items: center; color: inherit; background: none; font-size: 15px; cursor: pointer; }
 .format-bar button:hover { background: var(--pill-bg); }
+.format-bar button svg { width: 18px; height: 18px; stroke-width: 1.75; }
 .format-bar > i { width: 1px; height: 20px; flex: 0 0 1px; margin: 0 4px; background: var(--hairline); }
 /* Slack drops the trailing format group when the composer is narrow rather than
    letting the buttons squeeze below their 28px box. */
@@ -838,7 +839,7 @@ button { color: inherit; }
 
 .composer-actions { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 6px; }
 .composer-actions > div { display: flex; align-items: center; gap: 2px; }
-.composer-actions button { min-width: 28px; height: 28px; margin: 2px; padding: 2px; border: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--fg-soft); background: transparent; cursor: pointer; }
+.composer-actions button { min-width: 28px; height: 28px; margin: 2px; padding: 2px; border: 0; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--fg-soft); background: transparent; cursor: pointer; }
 .composer-actions button:hover { color: var(--fg-strong); background: var(--pill-bg); }
 .composer-actions button svg { width: 18px; height: 18px; }
 .composer-actions button strong { font-size: 15px; }
@@ -1259,12 +1260,9 @@ button { color: inherit; }
 .coach .progress-track { height: 3px; margin: 0 0 18px; border-radius: 4px; overflow: hidden; background: #3f3f46; }
 .coach .progress-track i { display: block; height: 100%; border-radius: inherit; background: #fff; transition: width .4s cubic-bezier(.16, 1, .3, 1); }
 .coach .lesson-card { margin: 0; padding: 0; animation: hcFadeUp .32s ease-out .46s both; }
-.coach .lesson-card h2 { display: flex; align-items: baseline; gap: 9px; margin: 0 0 8px; color: #fafafa; font-size: 20px; line-height: 1.25; letter-spacing: -.01em; }
-.coach .lesson-card h2 > span { flex: 0 0 auto; font-size: 18px; line-height: 1; }
+.coach .lesson-card h2 { margin: 0 0 8px; color: #fafafa; font-size: 20px; line-height: 1.25; letter-spacing: -.01em; }
 .lesson-body { margin: 0 0 17px; color: #d4d4d8; font-size: 1rem; line-height: 1.5; }
-.task-box { display: grid; grid-template-columns: 54px 1fr; gap: 10px; align-items: center; padding: 11px; border: 1px solid #3f3f46; border-radius: 9px; color: #f4f4f5; background: #27272a; }
-.task-box > span { display: grid; place-items: center; }
-.task-box > span img { width: 54px; height: 42px; object-fit: contain; }
+.task-box { padding: 11px; border: 1px solid #3f3f46; border-radius: 9px; color: #f4f4f5; background: #27272a; }
 .task-box div { display: flex; flex-direction: column; gap: 2px; }
 .task-box small { color: #d4d4d8; font-size: .75rem; font-weight: 700; letter-spacing: .09em; }
 .task-box strong { color: #f4f4f5; font-size: .9375rem; line-height: 1.5; }
@@ -1567,7 +1565,7 @@ button { color: inherit; }
   .channel-heading > button { display: none; }
   .channel-header h2 { max-width: calc(100vw - 150px); font-size: 17px; line-height: 20px; }
   .mobile-channel-meta { display: block; overflow: hidden; color: var(--fg-muted); font-size: 11px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
-  .header-actions > button:first-child,
+  .header-actions > .channel-member-count,
   .header-actions > button[aria-label='Search in channel'] { display: none; }
   .header-actions { gap: 4px; }
   .header-actions > button,
@@ -1648,8 +1646,7 @@ button { color: inherit; }
   .coach .progress-track { margin-bottom: 10px; }
   .coach .lesson-card h2 { margin-bottom: 6px; font-size: 16px; }
   .coach-active .lesson-body { display: none; }
-  .task-box { grid-template-columns: 42px 1fr; padding: 8px; }
-  .task-box > span img { width: 42px; height: 32px; }
+  .task-box { padding: 8px; }
   .guide-actions { margin-top: 10px; }
 }
 
