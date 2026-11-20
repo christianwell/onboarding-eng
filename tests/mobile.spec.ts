@@ -10,6 +10,8 @@ for (const program of ['slack', 'stardance']) {
     await search.fill('Christian')
     await page.getByRole('button', { name: 'Open DM with Christian', exact: true }).tap()
     await expect(page.locator('.channel-header h2')).toHaveText('Christian')
+    await expect(page.locator('.channel-header')).not.toContainText('82,896')
+    await expect(page.locator('.mobile-channel-meta')).toHaveText('Direct message')
     await expect(page.locator('.completion-modal')).toHaveCount(0)
     await page.locator('.mobile-channel-back').tap()
     await page.locator('.mobile-home-search').tap()
