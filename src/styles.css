@@ -942,6 +942,7 @@ button { color: inherit; }
 .thread-panel header button { flex: 0 0 auto; width: 28px; height: 28px; border: 0; border-radius: var(--radius-lg); display: grid; place-items: center; color: inherit; background: none; cursor: pointer; }
 .thread-panel header button:hover { background: var(--content-hover); }
 .thread-panel header button svg { width: 18px; height: 18px; }
+.thread-messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .reply-count {
   height: 24px;
   flex: 0 0 auto;

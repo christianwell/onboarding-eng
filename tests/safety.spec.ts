@@ -268,6 +268,14 @@ for (const program of ['slack', 'stardance']) {
       return toolbar.bottom <= author.top && button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
     })).toBe(true)
     await forwardToShroud(page)
+    await page.setViewportSize({ width: 384, height: 354 })
+    for (const control of [page.getByRole('checkbox', { name: 'Include my username' }), page.getByRole('button', { name: 'Submit', exact: true })]) {
+      await expect.poll(() => control.evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        return rect.top >= 0 && rect.bottom <= innerHeight
+          && element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+      })).toBe(true)
+    }
     await page.getByRole('checkbox', { name: 'Include my username' }).check()
     await page.getByRole('button', { name: 'Submit', exact: true }).click()
     await expect(page.locator('.completion-modal')).toBeVisible()
