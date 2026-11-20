@@ -12,8 +12,6 @@ training:
     - channels
     - threads
     - dms
-    - huddles
-    - leave-channel
     - safety
 
 channels:

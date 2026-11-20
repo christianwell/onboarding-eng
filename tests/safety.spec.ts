@@ -5,6 +5,34 @@ async function openJan(page: Page) {
   await expect(page.locator('.messages')).toContainText("You're stinky and ugly!")
 }
 
+for (const viewport of [{ width: 1440, height: 900 }, { width: 1272, height: 581 }, { width: 913, height: 338 }]) {
+  test(`forwarding stays reachable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.goto('/step/safety')
+    await openJan(page)
+    await page.evaluate(() => document.fonts.ready)
+    const trigger = page.getByRole('button', { name: 'Forward message', exact: true })
+    const reachable = () => trigger.evaluate((button) => {
+      const rect = button.getBoundingClientRect()
+      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+    })
+    await expect.poll(reachable).toBe(true)
+    await expect.poll(() => page.locator('.coach').evaluate((guide) => {
+      const rect = guide.getBoundingClientRect()
+      return rect.top >= 0 && rect.bottom <= innerHeight
+    })).toBe(true)
+    await trigger.click()
+    await expect(page.getByRole('dialog', { name: 'Forward message', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Close forward message' }).click()
+    await expect.poll(reachable).toBe(true)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await expect.poll(reachable).toBe(true)
+    await page.setViewportSize(viewport)
+    await expect.poll(reachable).toBe(true)
+    await expect(page.locator('.completion-modal')).toHaveCount(0)
+  })
+}
+
 async function forwardToShroud(page: Page, note = '') {
   await expect.poll(() => page.getByRole('button', { name: 'Forward message', exact: true }).evaluate((button) => {
     const action = button.getBoundingClientRect()
@@ -16,6 +44,12 @@ async function forwardToShroud(page: Page, note = '') {
   const dialog = page.getByRole('dialog', { name: 'Forward message', exact: true })
   await dialog.getByRole('textbox', { name: 'Forward to' }).fill('@shroud')
   await dialog.getByRole('button', { name: 'shroud APP', exact: true }).click()
+  // Do not let Playwright's click auto-scroll hide an offscreen primary action.
+  await expect.poll(() => dialog.getByRole('button', { name: 'Forward', exact: true }).evaluate((button) => {
+    const rect = button.getBoundingClientRect()
+    return rect.top >= 0 && rect.bottom <= innerHeight
+      && button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+  })).toBe(true)
   if (note) await dialog.getByRole('textbox', { name: 'Add a note' }).fill(note)
   await dialog.getByRole('button', { name: 'Forward', exact: true }).click()
   await expect(page.locator('.channel-header h2')).toHaveText('shroud')
