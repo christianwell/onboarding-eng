@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function startDemo(page: Page, path = '/hn') {
+async function startDemo(page: Page, path = '/demo') {
   await page.goto(path)
   await expect(page.getByText('An interactive Slack learning demo, not an official Slack product.')).toBeVisible()
   await expect(page.getByText('No sign-in or joining Hack Club required.')).toBeVisible()
@@ -22,7 +22,7 @@ for (const width of [1440, 340]) {
     await page.addInitScript(() => {
       window.addEventListener('hackclub:onboarding-complete', () => { document.body.dataset.handoff = 'yes' })
     })
-    await startDemo(page, '/hn?return_to=https://slack.hackclub.com')
+    await startDemo(page, '/demo?return_to=https://slack.hackclub.com')
     await expect(page.getByRole('link')).toHaveCount(0)
     await page.getByRole('button', { name: '2 replies View thread', exact: true }).first().click()
     await expect(page.getByRole('button', { name: 'Send reply', exact: true })).toBeDisabled()
@@ -35,7 +35,7 @@ for (const width of [1440, 340]) {
     await expect(page.locator('body')).not.toHaveAttribute('data-handoff', 'yes')
     // Wait beyond the regular guide's automatic handoff deadline.
     await page.waitForTimeout(3000)
-    await expect(page).toHaveURL(/\/hn\?return_to=/)
+    await expect(page).toHaveURL(/\/demo\?return_to=/)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Interactive Slack learning demo', exact: true })).toBeVisible()
@@ -51,7 +51,7 @@ test('alias supports keyboard entry and a browser-opened tab can close after com
   await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: 'Let’s get started' })).toBeFocused()
   const popupPromise = page.waitForEvent('popup')
-  await page.evaluate(() => window.open('/hn'))
+  await page.evaluate(() => window.open('/demo'))
   const popup = await popupPromise
   await startDemo(popup)
   await finishDemo(popup)

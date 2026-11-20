@@ -17,7 +17,8 @@ if (window.location.pathname === import.meta.env.BASE_URL) {
     : 'https://github.com/christianwell/onboarding-eng')
 } else {
   const pathname = window.location.pathname.replace(/\/$/, '')
-  const Page = React.lazy(() => pathname === `${import.meta.env.BASE_URL}hn` || pathname === `${import.meta.env.BASE_URL}hacker-news`
+  const isDemo = ['demo', 'hn', 'hacker-news'].some((route) => pathname === `${import.meta.env.BASE_URL}${route}`)
+  const Page = React.lazy(() => isDemo
     ? import('./HnDemo')
     : pathname.endsWith('/flow-tester')
     ? import('./FlowTester')
