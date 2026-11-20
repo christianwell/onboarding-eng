@@ -281,9 +281,9 @@ const guideSpring = { type: 'spring' as const, visualDuration: 0.3, bounce: 0 }
 const spotlightSpring = { type: 'spring' as const, visualDuration: 0.36, bounce: 0.2 }
 const minimumBootMs = 480
 
-function BootScreen() {
+function BootScreen({ standalone }: { standalone: boolean }) {
   return <>
-    <img src={guideAssets.flag} alt="Hack Club" />
+    {standalone ? <Hash size={30} color="white" aria-hidden="true" /> : <img src={guideAssets.flag} alt="Hack Club" />}
     <div className="spinner" />
   </>
 }
@@ -332,6 +332,9 @@ function ReplyFacepile() {
 }
 
 function App() {
+  const pathname = window.location.pathname
+  const base = import.meta.env.BASE_URL
+  const standalone = ['demo', 'hn', 'hacker-news'].some((route) => pathname.replace(/\/$/, '') === `${base}${route}`)
   const [config, setConfig] = useState<ProgramConfig | null>(null)
   const [introComplete, setIntroComplete] = useState(false)
   const [lessonIndex, setLessonIndex] = useState(0)
@@ -398,9 +401,10 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
-    loadProgram(getProgramSlug(window.location.pathname, import.meta.env.BASE_URL)).then((loaded) => {
+    loadProgram(standalone ? 'demo' : getProgramSlug(pathname, base)).then((loaded) => {
       if (cancelled) return
-      const step = getProgramStep(window.location.pathname)
+      const step = getProgramStep(pathname)
+      if (!standalone && loaded.program.slug === 'demo') throw new Error('Invalid demo route')
       const stepChannel = getStepChannel(window.location.href)
       const searchTarget = step === 'search' ? stepChannel : null
       if (step !== null) {
@@ -418,18 +422,18 @@ function App() {
       setChannel(initialChannel)
       setJoinedChannels([...new Set([...getDefaultChannels(loaded), ...(step === 'leave-channel' ? [initialChannel] : [])])])
       setMessages(makeChannelMessages(loaded, initialChannel))
-      document.title = `${loaded.program.name} · Slack Flight School`
+      document.title = standalone ? loaded.program.tagline : `${loaded.program.name} · Slack Flight School`
     }).catch(() => {
       if (!cancelled) window.location.replace('https://hackclub.com/')
     })
     return () => { cancelled = true }
-  }, [])
+  }, [standalone, pathname, base])
 
-  const onboardingTracker = useMemo(() => config ? createOnboardingTracker(
+  const onboardingTracker = useMemo(() => config && !standalone ? createOnboardingTracker(
     config.program.slug,
     getProgramStep(window.location.pathname) === null ? 'full_guide' : 'single_lesson',
     config.training.lessons.length,
-  ) : null, [config])
+  ) : null, [config, standalone])
 
   useEffect(() => {
     onboardingTracker?.view()
@@ -443,13 +447,17 @@ function App() {
     () => [...new Set([...joinedChannels, ...recommendedChannels])],
     [joinedChannels, recommendedChannels],
   )
-  const report = config ? defaultSafetyReport : null
+  const report = config && !standalone ? defaultSafetyReport : null
+  const workspaceName = standalone ? config?.program.name : 'Hack Club'
+  const dmRecipient = config?.training.dm_recipient ?? 'Christian'
+  const inLessonDM = directMessage === dmRecipient
   const reportMessageId = reportMessage?.id ?? null
   const spamSender = report?.spam.from.name ?? null
   const moderatorName = report?.moderator.name ?? null
   const searchMembers = useMemo<SimulatedPerson[]>(
-    () => report ? [...workspaceMembers, { name: report.moderator.name, username: report.moderator.username, color: report.moderator.color, avatar: report.moderator.avatar && assetUrl(report.moderator.avatar) }] : workspaceMembers,
-    [report],
+    () => report ? [...workspaceMembers, { name: report.moderator.name, username: report.moderator.username, color: report.moderator.color, avatar: report.moderator.avatar && assetUrl(report.moderator.avatar) }]
+      : standalone ? workspaceMembers.filter((member) => member.name !== 'Christian') : workspaceMembers,
+    [report, standalone],
   )
   const mentionMatches = useMemo(
     () => rankMatches(searchMembers, (member) => `${member.name} ${member.username}`, mentionQuery, 6),
@@ -491,7 +499,7 @@ function App() {
     : spamRead && directMessage === moderatorName && (reportStatus === 'pending' || reportStatus === 'submitted') ? 'submit'
       : spamRead ? 'find'
         : 'notice'
-  const searchSpotlightMember = activeLesson === 'dms' ? 'Christian' : null
+  const searchSpotlightMember = activeLesson === 'dms' ? dmRecipient : null
   const spotlightMemberInResults = searchSuggestions.some((suggestion) => suggestion.type === 'member' && suggestion.member.name === searchSpotlightMember)
   const configuredLessonCopy = activeLesson
     ? reportPhase ? report!.steps[reportPhase] : config?.copy?.lessons?.[activeLesson] ?? defaultLessonCopy[activeLesson]
@@ -501,8 +509,8 @@ function App() {
     body: resolveProgramCopy(configuredLessonCopy.body, config!),
     task: activeLesson === 'leave-channel' && configuredLessonCopy === defaultLessonCopy['leave-channel'] && window.innerWidth <= 620
       ? `⋯ → Leave channel (#${config!.training.practice_channel})`
-      : activeLesson === 'dms' && directMessage === 'Christian'
-      ? 'Send Christian a friendly hello in this DM.'
+      : activeLesson === 'dms' && inLessonDM
+      ? `Send ${dmRecipient} a friendly hello in this DM.`
       : activeLesson === 'search' && searchChannelTarget
       ? defaultLessonCopy.search.task.replace('hardware help', `#${searchChannelTarget}`)
       : resolveProgramCopy(configuredLessonCopy.task.replaceAll('#stardance', `#${activeLesson === 'channels' ? config!.training.channel_target : config!.training.practice_channel}`), config!),
@@ -521,10 +529,10 @@ function App() {
 
   useEffect(() => {
     if (!introComplete || window.innerWidth > 620) return
-    if (activeLesson === 'search' || activeLesson === 'dms' && directMessage !== 'Christian') {
+    if (activeLesson === 'search' || activeLesson === 'dms' && !inLessonDM) {
       setSidebarOpen(true)
     }
-  }, [activeLesson, directMessage, introComplete, reportPhase])
+  }, [activeLesson, inLessonDM, introComplete, reportPhase])
 
   // The anchor starts at 0,0 because the first position is only known after a
   // measuring pass. Snapping to that first placement keeps the card from
@@ -541,11 +549,11 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [config])
 
-  const completionUrl = config ? getCompletionUrl(config, window.location.href) : ''
+  const completionUrl = config && !standalone ? getCompletionUrl(config, window.location.href) : ''
   const returnsToFlow = config ? completionUrl !== config.completion.auth_url : false
 
   useEffect(() => {
-    if (!allComplete || !config) return
+    if (!allComplete || !config || standalone) return
 
     onboardingTracker?.complete(returnsToFlow ? 'return' : 'auth')
     const completion = {
@@ -567,7 +575,7 @@ function App() {
       stopFireworks()
       window.clearTimeout(redirect)
     }
-  }, [allComplete, completionUrl, config, returnsToFlow, onboardingTracker])
+  }, [allComplete, completionUrl, config, returnsToFlow, onboardingTracker, standalone])
 
   useLayoutEffect(() => {
     if (allComplete) return
@@ -598,7 +606,7 @@ function App() {
                     : reportPhase === 'find' && directMessage === spamSender ? '.forward-message'
                       : isMobile && !sidebarOpen ? '.mobile-channel-back' : isMobile ? '.mobile-spam-dm' : '.spam-dm'
                 : activeLesson === 'dms'
-                  ? directMessage === 'Christian' && !sidebarOpen ? '.target-composer' : memberSearchSelector()
+                  ? inLessonDM && !sidebarOpen ? '.target-composer' : memberSearchSelector()
                   : activeLesson === 'channels'
                     ? '.target-sidebar'
                     : activeLesson === 'messages' || activeLesson === 'pings'
@@ -636,7 +644,7 @@ function App() {
         const guideAtTop = introComplete && !sidebarOpen && (
           activeLesson === 'messages'
           || activeLesson === 'pings'
-          || activeLesson === 'dms' && directMessage === 'Christian'
+          || activeLesson === 'dms' && inLessonDM
           || activeLesson === 'threads' && threadOpen
         )
         let top = !introComplete
@@ -736,7 +744,7 @@ function App() {
         setGuidePosition(threadOpen ? bottomLeft : bottomRight)
         return
       }
-      if (searchOpen || (activeLesson === 'dms' && directMessage !== 'Christian') || reportPhase === 'find') {
+      if (searchOpen || (activeLesson === 'dms' && !inLessonDM) || reportPhase === 'find') {
         // On short laptops the bottom-right card reaches up into the message
         // toolbar. Keep the whole toolbar clear, not just its Forward button.
         if (readingDirectMessage && reportPhase === 'find') {
@@ -992,9 +1000,9 @@ function App() {
     else setMessages((current) => [...current, message])
     setDraft('')
     setMentionMenuOpen(false)
-    if (activeLesson === 'messages') completeLesson('messages')
+    if (activeLesson === 'messages' && (!standalone || !directMessage && channel === config?.training.practice_channel)) completeLesson('messages')
     if (activeLesson === 'pings' && selectedMention === 'Nova' && body.includes('@Nova')) completeLesson('pings')
-    if (activeLesson === 'dms' && directMessage === 'Christian') completeLesson('dms')
+    if (activeLesson === 'dms' && inLessonDM) completeLesson('dms')
     setSelectedMention(null)
   }
 
@@ -1184,6 +1192,7 @@ function App() {
 
   const channelPurpose = useMemo(() => {
     if (directMessage) return `A private conversation with ${directMessage}.`
+    if (standalone) return channel === config?.completion.entry_channel ? config.program.tagline : ''
     if (channel === 'lounge') return '🏳️‍🌈 Hang out & chat here! Also see: #community, #confessions, #furry, #lgbtq, #politics'
     if (config && channel === config.completion.entry_channel) return config.program.tagline
     if (channel === 'welcome-to-hack-club') return 'Meet other new members and ask a Hack Club Gardener when you need a hand!'
@@ -1196,10 +1205,11 @@ function App() {
     if (channel === 'code') return 'Discuss and get help with anything coding related! (No, your math homework doesn\'t count. Maybe it should actually...)'
     if (channel === 'hardware') return 'The hardware haven, get help with your hardware projects!'
     return 'Your friendly launchpad into the Hack Club community.'
-  }, [channel, config, directMessage])
+  }, [channel, config, directMessage, standalone])
 
   const channelTabs: { view: ChannelView; label: string; icon?: 'messages' | 'files' | 'pins' }[] = useMemo(() => {
     const tabs: { view: ChannelView; label: string; icon?: 'messages' | 'files' | 'pins' }[] = [{ view: 'messages', label: 'Messages', icon: 'messages' }]
+    if (standalone) return tabs
     if (channel === 'lounge') {
       return [...tabs,
       { view: 'guide', label: 'Intro to Hack Club!' },
@@ -1222,9 +1232,12 @@ function App() {
     if (channel === 'identity-help') return [...tabs, { view: 'faq', label: 'Identity FAQ' }, { view: 'pins', label: 'Pins', icon: 'pins' }]
     if (channel === config?.support?.channel) return [...tabs, { view: 'faq', label: config.support.faq_title }, { view: 'pins', label: 'Pins', icon: 'pins' }]
     return [...tabs, { view: 'files', label: 'Files & links', icon: 'files' }, { view: 'pins', label: 'Pins', icon: 'pins' }]
-  }, [channel, config])
+  }, [channel, config, standalone])
 
-  if (!config) return <main className="boot-overlay"><BootScreen /></main>
+  if (!config) return <main className="boot-overlay"><BootScreen standalone={standalone} /></main>
+
+  const workspaceIcon = standalone ? assetUrl(config.program.logo) : 'https://avatars.slack-edge.com/2026-09-05/11996709803553_51617fa11c671209cbf0_88.png'
+  const memberCount = standalone ? searchMembers.length + 1 : '82,896'
 
   const guideCard = <motion.aside
     className={`coach coach-${activeLesson} ${reportPhase ? `coach-report-${reportPhase}` : ''} ${introComplete ? 'coach-active' : 'coach-intro'}`}
@@ -1236,15 +1249,15 @@ function App() {
     aria-label={`${config.program.name} onboarding guide`}
   >
     <div className="coach-brand">
-      <span className="guide-brand"><img src={guideAssets.flag} alt="Hack Club" /></span>
+      <span className="guide-brand">{standalone ? <Hash size={22} aria-hidden="true" /> : <img src={guideAssets.flag} alt="Hack Club" />}</span>
       <span className="guide-step" aria-label={introComplete ? `Step ${lessonIndex + 1} of ${lessons.length + 1}` : undefined}>{introComplete ? <><NumberFlow value={lessonIndex + 1} />/{lessons.length + 1}</> : 'Welcome'}</span>
     </div>
-    <div className="guide-mascot"><img src={guideAssets.mascot} alt="" draggable="false" /></div>
+    {!standalone && <div className="guide-mascot"><img src={guideAssets.mascot} alt="" draggable="false" /></div>}
     <div className="progress-track"><i style={{ width: introComplete ? `${guideProgress}%` : '0%' }} /></div>
 
     {!introComplete ? <div className="lesson-card guide-intro">
       <h2><span>👋</span>Let’s get you settled in</h2>
-      <p className="lesson-body">Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! This interactive guide will get you familiar with Slack.</p>
+      <p className="lesson-body">{config.copy?.welcome ?? 'Hack Club’s Slack is where hack clubbers chat, collaborate, and get help! This interactive guide will get you familiar with Slack.'}</p>
     </div> : <div className="lesson-card">
       <h2><span>{activeLesson === 'safety' ? '🛟' : activeLesson === 'search' ? '🔎' : activeLesson === 'notifications' ? '🔔' : activeLesson === 'reactions' ? '✨' : activeLesson === 'threads' ? '🧵' : activeLesson === 'pings' ? '@' : activeLesson === 'dms' ? '💌' : activeLesson === 'messages' ? '👋' : '💬'}</span>{activeCopy!.title}</h2>
       <p className="lesson-body">{activeCopy!.body}</p>
@@ -1261,7 +1274,7 @@ function App() {
     <MotionConfig reducedMotion="user">
       <AnimatePresence>
         {booting && <motion.div className="boot-overlay" exit={{ opacity: 0 }} transition={{ duration: 0.34, ease: 'easeOut' }} aria-hidden="true">
-          <BootScreen />
+          <BootScreen standalone={standalone} />
         </motion.div>}
       </AnimatePresence>
       <main className={`app-shell ${threadOpen && threadMessage ? 'thread-open' : ''} ${sidebarOpen ? 'sidebar-open' : ''}`} style={{ '--program': config.program.color } as React.CSSProperties}>
@@ -1273,13 +1286,13 @@ function App() {
             <button className="history-button" aria-label="Show history"><Clock3 /></button>
           </div>
           <button className={`search-trigger ${targetLesson === 'search' ? 'target-pulse' : ''}`} onClick={() => setSearchOpen(true)}>
-            <Search size={16} /><span>Search Hack Club</span><kbd>⌘ K</kbd>
+            <Search size={16} /><span>Search {workspaceName}</span><kbd>⌘ K</kbd>
           </button>
           <div className="profile-mini"><CircleHelp size={19} /><div>Y</div></div>
         </header>
 
         <nav className="nav-rail" aria-label="Slack navigation">
-          <button className="workspace-switcher" aria-label="Hack Club workspace"><img src="https://avatars.slack-edge.com/2026-09-05/11996709803553_51617fa11c671209cbf0_88.png" alt="" /></button>
+          <button className="workspace-switcher" aria-label={`${workspaceName} workspace`}><img src={workspaceIcon} alt="" /></button>
           <button className={directMessage ? '' : 'active'}><House /><span>Home</span></button>
           <button className={directMessage ? 'active' : ''} onClick={() => setSidebarOpen(true)}><MessagesSquare /><span>DMs</span></button>
           <button><Bell /><span>Activity</span><i>12</i></button>
@@ -1291,14 +1304,14 @@ function App() {
           <button className="rail-profile"><span>Y</span></button>
         </nav>
 
-        <section className={`mobile-home ${sidebarOpen ? 'open' : ''}`} aria-label="Hack Club home">
+        <section className={`mobile-home ${sidebarOpen ? 'open' : ''}`} aria-label={`${workspaceName} home`}>
           <header className="mobile-home-header">
             <div className="mobile-workspace-title">
-              <img src="https://avatars.slack-edge.com/2026-09-05/11996709803553_51617fa11c671209cbf0_88.png" alt="" />
-              <strong>Hack Club</strong><ChevronDown />
+              <img src={workspaceIcon} alt="" />
+              <strong>{workspaceName}</strong><ChevronDown />
               <span className="mobile-profile">Y</span>
             </div>
-            <button className={`mobile-home-search ${targetLesson === 'search' || activeLesson === 'dms' || reportPhase === 'find' ? 'target-pulse' : ''}`} aria-label="Search Hack Club" onClick={() => setSearchOpen(true)}><Search /><span>Jump to or search...</span><Mic /></button>
+            <button className={`mobile-home-search ${targetLesson === 'search' || activeLesson === 'dms' || reportPhase === 'find' ? 'target-pulse' : ''}`} aria-label={`Search ${workspaceName}`} onClick={() => setSearchOpen(true)}><Search /><span>Jump to or search...</span><Mic /></button>
             <div className="mobile-home-tiles" aria-label="Workspace shortcuts">
               <button><MessageCircle /><span><strong>Catch up</strong><small>3 more</small></span></button>
               <button><MessagesSquare /><span><strong>Threads</strong><small>2 new</small></span></button>
@@ -1334,8 +1347,8 @@ function App() {
           </nav>
         </section>
 
-        <aside id="workspace-sidebar" className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Hack Club channels">
-          <div className="workspace-title"><div><strong>Hack Club <ChevronDown size={14} /></strong></div><button className="workspace-settings" aria-label="Workspace settings"><Settings /></button><button className="compose-new" aria-label="New message"><SquarePen /></button><button className="close-sidebar" aria-label="Close channel list" onClick={() => setSidebarOpen(false)}><X /></button></div>
+        <aside id="workspace-sidebar" className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label={`${workspaceName} channels`}>
+          <div className="workspace-title"><div><strong>{workspaceName} <ChevronDown size={14} /></strong></div><button className="workspace-settings" aria-label="Workspace settings"><Settings /></button><button className="compose-new" aria-label="New message"><SquarePen /></button><button className="close-sidebar" aria-label="Close channel list" onClick={() => setSidebarOpen(false)}><X /></button></div>
           <button className="sidebar-search"><ListFilter size={15} /> <span>Find a conversation…</span></button>
           <button className="sidebar-item"><MessageCircle size={16} /> Threads</button>
           <button className="sidebar-item"><Headphones size={16} /> Huddles</button>
@@ -1346,7 +1359,7 @@ function App() {
           <button className="sidebar-item"><Star size={16} /> Starred</button>
           <p className="starred-empty">Drag and drop important stuff here</p>
           <div className="sidebar-section channel-list">
-            <p title={`${defaultChannels.length} channels will be added by Hack Club Auth`}><ChevronDown size={14} /> Channels</p>
+            <p title={standalone ? undefined : `${defaultChannels.length} channels will be added by Hack Club Auth`}><ChevronDown size={14} /> Channels</p>
             {joinedChannels.map((name) => {
               const unread = name === 'happenings' ? 4 : name === 'stardance-help' || name === 'lounge' ? 1 : 0
               return <button key={name} className={`${!directMessage && channel === name ? 'selected' : ''} ${unread ? 'unread' : ''} ${targetLesson === 'channels' && name === config.training.channel_target ? 'target-sidebar' : ''} ${targetLesson === 'leave-channel' && name === config.training.practice_channel ? 'leave-channel-sidebar target-sidebar' : ''}`} onClick={() => selectChannel(name)} onContextMenu={(event) => openChannelContextMenu(event, name)}><Hash size={16} /> <span>{name}</span>{unread > 0 && <i>{unread}</i>}</button>
@@ -1369,9 +1382,9 @@ function App() {
         <section className={`conversation ${directMessage ? 'direct-conversation' : ''} ${reportPhase === 'find' && directMessage === spamSender || reportPhase === 'submit' ? 'reading-report-dm' : ''}`}>
           <header className="channel-header">
             <button className="mobile-channel-back" aria-label="Open channel list" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><ChevronLeft /></button>
-            <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} <span>{directMessage ?? channel}</span></h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : '82,896 members'}</span><p>{channelPurpose}</p></div>
+            <div className="channel-heading"><button aria-label={directMessage ? 'View person' : 'Star channel'}>{directMessage ? <UserRound size={17} /> : <Star size={17} />}</button><h2>{directMessage ? <UserRound size={21} /> : <Hash size={21} />} <span>{directMessage ?? channel}</span></h2><span className="mobile-channel-meta">{directMessage ? 'Direct message' : `${memberCount} members`}</span><p>{channelPurpose}</p></div>
             <div className="header-actions">
-              <button><UserRound size={17} /><span>82,896</span></button>
+              <button><UserRound size={17} /><span>{memberCount}</span></button>
               <button
                 className={`huddle-button ${targetLesson === 'huddles' ? 'target-pulse' : ''}`}
                 aria-label={defaultLessonCopy.huddles.title}
@@ -1500,7 +1513,7 @@ function App() {
             ))}
           </div>}
 
-          {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && directMessage === 'Christian' ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+          {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && inLessonDM ? 'target-composer' : ''}`} onSubmit={sendMessage}>
             <div className="format-bar" role="toolbar" aria-label="Formatting">
               <button type="button" aria-label="Bold"><strong>B</strong></button>
               <button type="button" aria-label="Italic"><em>I</em></button>
@@ -1634,8 +1647,8 @@ function App() {
             {!searched && <button type="submit" className="search-all" onClick={() => { setSearched(true); setSearchActiveIndex(-1); completeSearchIfMatched() }}><span className="suggestion-icon"><Search /></span><span><strong>Search for “{searchQuery}”</strong><small>Messages, files, and more</small></span><kbd>Enter</kbd></button>}
           </div> : null}
           {!searched && !searchQuery.trim() ? searchSpotlightMember
-            ? <div className="search-empty"><UserRound /><h3>Find {searchSpotlightMember}</h3><p>Type <button onClick={() => setSearchQuery(searchSpotlightMember)}>{searchSpotlightMember}</button> to find their Hack Club account.</p></div>
-            : <div className="search-empty"><Sparkles /><h3>Search across Hack Club</h3><div><kbd>Enter</kbd> to search</div></div>
+            ? <div className="search-empty"><UserRound /><h3>Find {searchSpotlightMember}</h3><p>Type <button onClick={() => setSearchQuery(searchSpotlightMember)}>{searchSpotlightMember}</button> to find their {workspaceName} account.</p></div>
+            : <div className="search-empty"><Sparkles /><h3>Search across {workspaceName}</h3><div><kbd>Enter</kbd> to search</div></div>
             : null}
           {searched && <div className="search-results message-search-results">
             <div className="search-results-header"><div><strong>{searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}</strong><span> for “{searchQuery}”</span></div><button type="button">Most relevant <ChevronDown /></button></div>
@@ -1652,9 +1665,11 @@ function App() {
           <div className="completion-mark"><Check size={30} /></div>
           <p className="completion-step">Step {lessons.length + 1} of {lessons.length + 1} · Complete</p>
           <h1>Congrats!<br /><span>You’ve learned Slack.</span></h1>
-          <p>{returnsToFlow ? 'You’re all set. We’re sending you back to continue where you left off.' : `You’re all set. Continue to ${config.program.name} to join the community.`}</p>
-          <a href={completionUrl} onClick={() => onboardingTracker?.handoff(returnsToFlow ? 'return' : 'auth', 'click')}>{returnsToFlow ? 'Return to your flow' : `Continue to ${config.program.name}`} <ChevronRight size={19} /></a>
-          <small>Redirecting automatically…</small>
+          {standalone ? <p role="status">You're done — you can close this tab.</p> : <>
+            <p>{returnsToFlow ? 'You’re all set. We’re sending you back to continue where you left off.' : `You’re all set. Continue to ${config.program.name} to join the community.`}</p>
+            <a href={completionUrl} onClick={() => onboardingTracker?.handoff(returnsToFlow ? 'return' : 'auth', 'click')}>{returnsToFlow ? 'Return to your flow' : `Continue to ${config.program.name}`} <ChevronRight size={19} /></a>
+            <small>Redirecting automatically…</small>
+          </>}
         </section></div>}
       </main>
     </MotionConfig>

@@ -189,9 +189,9 @@ export interface ProgramConfig {
     logo: string
     tagline: string
   }
-  training: { lessons: LessonId[]; channel_target: string; practice_channel: string }
+  training: { lessons: LessonId[]; channel_target: string; practice_channel: string; dm_recipient?: string }
   channels: { default: ChannelSection[]; recommended: string[]; read_only?: string[] }
-  copy?: { lessons?: Partial<Record<LessonId, LessonCopy>> }
+  copy?: { welcome?: string; lessons?: Partial<Record<LessonId, LessonCopy>> }
   support?: {
     channel: string
     discussion_channel: string
@@ -294,6 +294,9 @@ export function validateProgram(value: unknown): ProgramConfig {
   config.training.lessons = resolveLessons(config.training.lessons)
   if (!config.training.channel_target || !config.training.practice_channel) {
     throw new Error('Training channel target and practice channel are required')
+  }
+  if (config.training.dm_recipient !== undefined && !workspaceMembers.some((member) => member.name === config.training.dm_recipient)) {
+    throw new Error('The DM recipient must be a workspace member')
   }
   if (!Array.isArray(config.channels?.default) || config.channels.default.length === 0) {
     throw new Error('At least one default channel section is required')

@@ -1,0 +1,39 @@
+program:
+  name: Demo Workspace
+  slug: demo
+  color: "#611f69"
+  logo: "/guide-rocket.png"
+  tagline: "Interactive Slack learning demo"
+
+training:
+  channel_target: general
+  practice_channel: general
+  dm_recipient: Jules
+  lessons:
+    - channels
+    - messages
+    - dms
+
+channels:
+  default:
+    - label: Channels
+      channels: [welcome, general, random]
+  recommended: []
+
+# Reuses existing guide and demo wording with the workspace, channel and recipient names substituted.
+copy:
+  welcome: "An interactive Slack learning demo, not an official Slack product."
+  lessons:
+    channels:
+      title: "Slack uses channels"
+      body: "Each channel is specific to a different topic, just like the channels on a TV."
+      task: "Open the sidebar, and then choose #{{channel_target}}."
+    dms:
+      title: "Send Jules a direct message"
+      body: "DMs are private conversations between the people included. They’re useful for personal details or a quick one-to-one question."
+      task: "Use Search Demo Workspace to find Jules and open their account."
+
+completion:
+  auth_url: "https://slack.com/"
+  entry_channel: welcome
+  return_origins: []
