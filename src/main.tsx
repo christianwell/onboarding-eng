@@ -17,11 +17,13 @@ if (window.location.pathname === import.meta.env.BASE_URL) {
     : 'https://github.com/christianwell/onboarding-eng')
 } else {
   const pathname = window.location.pathname.replace(/\/$/, '')
-  const Page = React.lazy(() => pathname.endsWith('/flow-tester')
-    ? import('./FlowTester')
-    : pathname.endsWith('/program-builder')
-      ? import('./ProgramBuilder')
-      : import('./App'))
+  const Page = React.lazy(() => pathname === `${import.meta.env.BASE_URL}board`
+    ? import('./ImpactBoard')
+    : pathname.endsWith('/flow-tester')
+      ? import('./FlowTester')
+      : pathname.endsWith('/program-builder')
+        ? import('./ProgramBuilder')
+        : import('./App'))
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

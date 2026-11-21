@@ -1,0 +1,33 @@
+import { expect, test } from '@playwright/test'
+
+test('board exposes missing months and a qualified launch marker on direct entry and reload', async ({ page }) => {
+  await page.goto('/board')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Before-and-after impact board')
+  await expect(page.getByRole('heading', { name: 'Historical data unavailable' })).toBeVisible()
+  const rows = page.locator('tbody tr')
+  await expect(rows).toHaveCount(11)
+  await expect(rows.first()).toContainText('Jan 2026')
+  await expect(rows.first()).toContainText('Before')
+  await expect(page.getByRole('row', { name: /Sep 2026/ })).toContainText('Launch month · mixed')
+  await expect(page.getByRole('row', { name: /Oct 2026/ })).toContainText('After')
+  await expect(rows.last()).toContainText('Partial month')
+  await expect(page.getByLabel('Unavailable', { exact: true })).toHaveCount(44)
+  await expect(page.getByText('Live by 5 September; exact launch unverified.')).toBeVisible()
+  await expect(page.getByText(/does not establish causation/)).toBeVisible()
+  await page.reload()
+  await expect(rows).toHaveCount(11)
+  await page.goto('/board/')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Before-and-after impact board')
+})
+
+test('monthly table remains accessible without overflowing the narrow page', async ({ page }) => {
+  await page.setViewportSize({ width: 340, height: 510 })
+  await page.goto('/board')
+  const table = page.getByRole('region', { name: 'Monthly onboarding metrics' })
+  await table.focus()
+  await expect(table).toBeFocused()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  expect(await table.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
+  await page.keyboard.press('End')
+  await expect(page.getByRole('columnheader', { name: 'Onboarding Completed' })).toBeAttached()
+})
