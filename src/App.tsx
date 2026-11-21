@@ -654,6 +654,12 @@ function App() {
         const reportOptions = document.querySelector('.shroud-checkbox')
         const reportActions = document.querySelector('.shroud-actions')
         if (reportPhase === 'submit' && threadOpen && reportOptions && reportActions) {
+          const scrollContainer = reportActions.closest<HTMLElement>('.thread-messages')
+          if (revealTarget && scrollContainer) {
+            const bottomLimit = scrollContainer.getBoundingClientRect().bottom - 8
+            const actionsBottom = reportActions.getBoundingClientRect().bottom
+            if (actionsBottom > bottomLimit) scrollContainer.scrollTop += actionsBottom - bottomLimit
+          }
           const above = reportOptions.getBoundingClientRect().top - viewportTop - 54 - 12
           const below = viewportTop + viewportHeight - guideBottomInset - reportActions.getBoundingClientRect().bottom - 12
           // Keep both the privacy choice and Submit reachable, even for a
@@ -791,7 +797,7 @@ function App() {
     document.fonts.addEventListener('loadingdone', revealAndPositionGuide)
     window.visualViewport?.addEventListener('resize', revealAndPositionGuide)
     window.visualViewport?.addEventListener('scroll', trackSidebarScroll)
-    const scrollContainers = document.querySelectorAll('.sidebar, .mobile-home-list, .messages')
+    const scrollContainers = document.querySelectorAll('.sidebar, .mobile-home-list, .messages, .thread-messages')
     scrollContainers.forEach((container) => container.addEventListener('scroll', trackSidebarScroll))
     const card = document.querySelector<HTMLElement>('.coach')
     const observer = card ? new ResizeObserver(() => positionGuide()) : null
@@ -1566,34 +1572,36 @@ function App() {
 
         {threadOpen && threadMessage && <aside className="thread-panel">
           <header><div><strong>Thread</strong><span>{directMessage ?? `#${channel}`}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
-          <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p>{threadMessage.forwarded && <blockquote className="forwarded-message"><strong>{threadMessage.forwarded.author}</strong><time>{threadMessage.forwarded.time}</time><p>{renderMessageBody(threadMessage.forwarded.body)}</p></blockquote>}</div></article>
-          <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
-          {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
-            <article className="message compact shroud-prompt">
-              <div className="avatar small-avatar" style={{ background: report.moderator.color }}>{report.moderator.name[0]}{report.moderator.avatar && <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />}</div>
-              <div className="message-content">
-                <div className="message-meta"><strong>{report.moderator.name}</strong><span className="bot-label">APP</span><time>now</time></div>
-                {reportStatus === 'pending' ? <>
-                  <p>{report.moderator.prompt.intro}</p>
-                  <label className="shroud-checkbox">
-                    <input type="checkbox" checked={reportWithUsername} onChange={(event) => setReportWithUsername(event.target.checked)} />
-                    <span><strong>{report.moderator.prompt.anonymousOption}</strong><small>{report.moderator.prompt.anonymousOptionHint}</small></span>
-                  </label>
-                  <div className="shroud-actions">
-                    <button type="button" className={`block-button primary ${reportPhase === 'submit' ? 'target-action' : ''}`} onClick={submitReport}>{report.moderator.prompt.submit}</button>
-                    <button type="button" className="block-button danger" onClick={cancelReport}>{report.moderator.prompt.cancel}</button>
-                  </div>
-                </> : <p>{reportStatus === 'cancelled'
-                  ? report.moderator.prompt.cancelled
-                  : reportWithUsername ? report.moderator.prompt.submitted : report.moderator.prompt.submittedAnonymously}</p>}
-              </div>
-            </article>
-          </> : config.support && channel === config.support.channel ? <>
-            <article className="message compact support-bot-reply"><div className="avatar support-bot-avatar">{config.support.bot_name[0]}</div><div className="message-content"><div className="message-meta"><strong>{config.support.bot_name}</strong><span className="bot-label">APP</span><time>just now</time></div><p>{config.support.acknowledgement.replaceAll('{{author}}', threadMessage.author).replaceAll('{{program}}', config.program.name)}</p><button className="thread-faq-link" onClick={() => { setThreadOpen(false); setChannelView('faq') }}><FileText /> {config.support.faq_title}</button><div className="support-ticket-row"><button disabled={resolvedThreads.includes(threadMessage.id)} onClick={() => setResolvedThreads((current) => [...current, threadMessage.id])}>{resolvedThreads.includes(threadMessage.id) ? <><Check /> Resolved</> : 'Mark as resolved'}</button></div></div></article>
-          </> : <>
-            <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
-            <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
-          </>}
+          <div className="thread-messages">
+            <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p>{threadMessage.forwarded && <blockquote className="forwarded-message"><strong>{threadMessage.forwarded.author}</strong><time>{threadMessage.forwarded.time}</time><p>{renderMessageBody(threadMessage.forwarded.body)}</p></blockquote>}</div></article>
+            <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
+            {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
+              <article className="message compact shroud-prompt">
+                <div className="avatar small-avatar" style={{ background: report.moderator.color }}>{report.moderator.name[0]}{report.moderator.avatar && <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />}</div>
+                <div className="message-content">
+                  <div className="message-meta"><strong>{report.moderator.name}</strong><span className="bot-label">APP</span><time>now</time></div>
+                  {reportStatus === 'pending' ? <>
+                    <p>{report.moderator.prompt.intro}</p>
+                    <label className="shroud-checkbox">
+                      <input type="checkbox" checked={reportWithUsername} onChange={(event) => setReportWithUsername(event.target.checked)} />
+                      <span><strong>{report.moderator.prompt.anonymousOption}</strong><small>{report.moderator.prompt.anonymousOptionHint}</small></span>
+                    </label>
+                    <div className="shroud-actions">
+                      <button type="button" className={`block-button primary ${reportPhase === 'submit' ? 'target-action' : ''}`} onClick={submitReport}>{report.moderator.prompt.submit}</button>
+                      <button type="button" className="block-button danger" onClick={cancelReport}>{report.moderator.prompt.cancel}</button>
+                    </div>
+                  </> : <p>{reportStatus === 'cancelled'
+                    ? report.moderator.prompt.cancelled
+                    : reportWithUsername ? report.moderator.prompt.submitted : report.moderator.prompt.submittedAnonymously}</p>}
+                </div>
+              </article>
+            </> : config.support && channel === config.support.channel ? <>
+              <article className="message compact support-bot-reply"><div className="avatar support-bot-avatar">{config.support.bot_name[0]}</div><div className="message-content"><div className="message-meta"><strong>{config.support.bot_name}</strong><span className="bot-label">APP</span><time>just now</time></div><p>{config.support.acknowledgement.replaceAll('{{author}}', threadMessage.author).replaceAll('{{program}}', config.program.name)}</p><button className="thread-faq-link" onClick={() => { setThreadOpen(false); setChannelView('faq') }}><FileText /> {config.support.faq_title}</button><div className="support-ticket-row"><button disabled={resolvedThreads.includes(threadMessage.id)} onClick={() => setResolvedThreads((current) => [...current, threadMessage.id])}>{resolvedThreads.includes(threadMessage.id) ? <><Check /> Resolved</> : 'Mark as resolved'}</button></div></div></article>
+            </> : <>
+              <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
+              <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
+            </>}
+          </div>
           <form className={`thread-composer ${targetLesson === 'threads' && threadOpen ? 'target-composer' : ''}`} onSubmit={sendThreadReply}>
             <div className="format-bar" role="toolbar" aria-label="Formatting">
               <button type="button" aria-label="Bold"><strong>B</strong></button>
