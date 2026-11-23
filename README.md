@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img width="100%" alt="Slack onboarding demo" src="https://cdn.hackclub.com/01a207a1-2e19-7dab-bea9-6bd3e1906cac/slack-guide-demo-close.gif">
+  <img width="100%" alt="Slack onboarding demo" src="https://cdn.hackclub.com/01a2095a-f8e6-7cf8-9e50-d3d1719915de/slack-guide-demo-readme.gif">
 </p>
 
 <h1 align="center">Contributors</h1>
