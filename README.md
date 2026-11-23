@@ -13,11 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="https://welcome.hackclub.com/slack"><em>live demo</em></a>
+  <a href="https://welcome.hackclub.com/demo"><em>live demo</em></a>
 </p>
 
 <p align="center">
-  <img width="100%" alt="Slack onboarding demo" src="https://github.com/user-attachments/assets/97fb27fc-5e46-4d72-920c-b9e2c46848f8">
+  <img width="100%" alt="Slack onboarding demo" src="https://cdn.hackclub.com/01a207a1-2e19-7dab-bea9-6bd3e1906cac/slack-guide-demo-close.gif">
 </p>
 
 <h1 align="center">Contributors</h1>
