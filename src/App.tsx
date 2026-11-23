@@ -50,7 +50,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { createOnboardingTracker } from './analytics'
 import ForwardMessage from './ForwardMessage'
 import Huddle from './Huddle'
-import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepChannel, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, workspaceMembers } from './program'
+import { assetUrl, defaultLessonCopy, defaultSafetyReport, getCompletionUrl, getDefaultChannels, getProgramSlug, getProgramStep, getStepChannel, isReadOnlyChannel, lessonIds, LessonId, loadProgram, ProgramConfig, SafetyReportPhase, SimulatedPerson, validateProgram, workspaceMembers } from './program'
 
 type Message = {
   id: number
@@ -184,14 +184,6 @@ function makeChannelMessages(config: ProgramConfig, channel: string): Message[] 
     return makeInitialMessages(config)
   }
   return []
-}
-
-function isReadOnlyChannel(config: ProgramConfig, channel: string) {
-  return config.channels.read_only?.includes(channel) ?? (channel === 'announcements'
-    || channel === 'happenings'
-    || channel === 'news-wire'
-    || channel.includes('bulletin')
-    || channel.includes('community-announcements'))
 }
 
 function resolveProgramCopy(value: string, config: ProgramConfig) {
@@ -349,8 +341,7 @@ function App() {
   const [channel, setChannel] = useState('welcome-to-hack-club')
   const [joinedChannels, setJoinedChannels] = useState<string[]>([])
   const [channelView, setChannelView] = useState<ChannelView>('messages')
-  const [messages, setMessages] = useState<Message[]>([])
-  const [directMessages, setDirectMessages] = useState<Message[]>(() => makeDirectMessages('Christian', null))
+  const [conversations, setConversations] = useState<Record<string, Message[]>>({})
   const [directMessage, setDirectMessage] = useState<string | null>(null)
   const [spamDelivered, setSpamDelivered] = useState(false)
   const [spamRead, setSpamRead] = useState(false)
@@ -364,7 +355,8 @@ function App() {
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0)
   const [selectedMention, setSelectedMention] = useState<string | null>(null)
   const [threadOpen, setThreadOpen] = useState(false)
-  const [threadMessage, setThreadMessage] = useState<Message | null>(null)
+  const [threadMessageId, setThreadMessageId] = useState<number | null>(null)
+  const [threadReplies, setThreadReplies] = useState<Record<string, Message[]>>({})
   const [resolvedThreads, setResolvedThreads] = useState<number[]>([])
   const [threadDraft, setThreadDraft] = useState('')
   const [alsoSendToChannel, setAlsoSendToChannel] = useState(false)
@@ -389,9 +381,11 @@ function App() {
   const [theme, setTheme] = useState<Theme>(readStoredTheme)
   const composerRef = useRef<HTMLInputElement>(null)
   const messageListRef = useRef<HTMLDivElement>(null)
+  const threadListRef = useRef<HTMLDivElement>(null)
   const messageScrollRef = useRef<{ conversation: string; count: number } | null>(null)
   const messageScrollInitializedRef = useRef(false)
   const channelActionsRef = useRef<HTMLButtonElement>(null)
+  const searchDialogRef = useRef<HTMLElement>(null)
 
   const isDark = theme === 'dark'
 
@@ -416,6 +410,7 @@ function App() {
       if (step !== null) {
         if (!lessonIds.includes(step as LessonId)) throw new Error('Unknown program step')
         loaded.training.lessons = [step as LessonId]
+        validateProgram(loaded)
         setIntroComplete(true)
       }
       if (step === 'leave-channel' && stepChannel) loaded.training.practice_channel = stepChannel
@@ -427,7 +422,8 @@ function App() {
       setConfig(loaded)
       setChannel(initialChannel)
       setJoinedChannels([...new Set([...getDefaultChannels(loaded), ...(step === 'leave-channel' ? [initialChannel] : [])])])
-      setMessages(makeChannelMessages(loaded, initialChannel))
+      setConversations({})
+      setThreadReplies({})
       document.title = standalone ? loaded.program.tagline : `${loaded.program.name} · Slack Flight School`
     }).catch(() => {
       if (!cancelled) window.location.replace('https://hackclub.com/')
@@ -488,7 +484,7 @@ function App() {
     if (!config || !searched) return []
     return searchableChannels.flatMap((name) => {
       if (parsedSearch.scope && name.toLowerCase() !== parsedSearch.scope) return []
-      const messageResults = makeChannelMessages(config, name).filter((message) => {
+      const messageResults = (conversations[`channel:${name}`] ?? makeChannelMessages(config, name)).filter((message) => {
         const haystack = `${name} ${message.author} ${message.body} ${message.attachment?.title ?? ''} ${message.attachment?.description ?? ''}`.toLowerCase()
         return parsedSearch.terms.every((term) => haystack.includes(term))
       }).map((message) => ({ channel: name, message }))
@@ -497,8 +493,45 @@ function App() {
         ? [{ channel: name, message: { id: 0, author: '', avatar: '', color: '', time: '', body: '' } }]
         : []
     }).slice(0, 12)
-  }, [config, parsedSearch, searchableChannels, searched])
-  const visibleMessages = directMessage ? directMessages : messages
+  }, [config, conversations, parsedSearch, searchableChannels, searched])
+  const conversation = directMessage ? `dm:${directMessage}` : `channel:${channel}`
+  const messages = useMemo(() => conversations[`channel:${channel}`] ?? (config ? makeChannelMessages(config, channel) : []), [channel, config, conversations])
+  const visibleMessages = useMemo(() => directMessage
+    ? conversations[conversation] ?? makeDirectMessages(directMessage, config)
+    : messages, [config, conversation, conversations, directMessage, messages])
+  const threadMessage = visibleMessages.find((message) => message.id === threadMessageId) ?? null
+  const threadKey = `${conversation}:${threadMessageId}`
+
+  const updateConversation = (key: string, update: (current: Message[]) => Message[]) => {
+    setConversations((current) => {
+      const history = current[key] ?? (key.startsWith('dm:') ? makeDirectMessages(key.slice(3), config) : makeChannelMessages(config!, key.slice(8)))
+      return { ...current, [key]: update(history) }
+    })
+  }
+
+  useEffect(() => {
+    setDraft('')
+    setMentionMenuOpen(false)
+    setMentionQuery('')
+    setSelectedMention(null)
+  }, [conversation])
+
+  useEffect(() => {
+    setThreadDraft('')
+    setAlsoSendToChannel(false)
+  }, [conversation, threadMessageId])
+
+  useEffect(() => {
+    const list = threadListRef.current
+    if (list && threadReplies[threadKey]?.length) list.scrollTop = list.scrollHeight
+  }, [threadKey, threadOpen, threadReplies])
+
+  useEffect(() => {
+    if (!searchOpen) return
+    const previous = document.activeElement as HTMLElement | null
+    searchDialogRef.current?.querySelector('input')?.focus()
+    return () => previous?.focus()
+  }, [searchOpen])
   const activeLesson = lessons[lessonIndex]
   const isActiveComplete = activeLesson ? completed.includes(activeLesson) : false
   const reportPhase: SafetyReportPhase | null = !report || activeLesson !== 'safety' ? null
@@ -634,6 +667,8 @@ function App() {
       const guide = document.querySelector<HTMLElement>('.coach')
       if (!guide) return
 
+      guide.style.removeProperty('--target-guide-height')
+      guide.classList.remove('coach-constrained')
       const guideWidth = guide.offsetWidth
       const guideHeight = guide.offsetHeight
       const insideSearchPanel = Boolean(target?.closest('.search-modal'))
@@ -682,6 +717,18 @@ function App() {
             : viewportTop + 54
         } else {
           guide.style.removeProperty('--report-guide-height')
+        }
+
+        if (introComplete && activeLesson === 'notifications' && !sidebarOpen && !searchOpen) {
+          const composer = document.querySelector<HTMLElement>(threadOpen ? '.thread-composer' : '.composer')
+          const bottomLimit = notificationsOpen
+            ? viewportTop + viewportHeight - guideBottomInset
+            : composer?.getBoundingClientRect().top ?? viewportTop + viewportHeight - guideBottomInset
+          // Leave both the notification control/menu and the composer usable.
+          top = Math.max(viewportTop + 54, (target?.getBoundingClientRect().bottom ?? viewportTop + 42) + 12)
+          const available = Math.max(0, bottomLimit - top - 12)
+          guide.classList.toggle('coach-constrained', available < guideHeight)
+          guide.style.setProperty('--target-guide-height', `${available}px`)
         }
 
         if (target && !isActiveComplete && !skipRing) {
@@ -739,6 +786,7 @@ function App() {
 
       // Reveal a new DM in the sidebar, or its forwarding control in a short
       // conversation, before measuring the spotlight and guide position.
+      if (revealTarget && activeLesson === 'threads' && !threadOpen) target.scrollIntoView({ block: 'nearest' })
       const targetScrollContainer = target.closest<HTMLElement>(reportPhase === 'find' ? '.sidebar, .messages' : '.sidebar')
       if (revealTarget && targetScrollContainer) {
         const targetRect = target.getBoundingClientRect()
@@ -796,8 +844,16 @@ function App() {
       // never covers the thing it is asking the reader to click.
       if (left < 12) {
         left = clampLeft(rect.left + rect.width / 2 - guideWidth / 2)
-        const below = rect.bottom + 24
-        top = below + guideHeight <= window.innerHeight - 12 ? below : clampTop(rect.top - guideHeight - 24)
+        const below = Math.max(12, rect.bottom + 24)
+        const roomBelow = Math.max(0, window.innerHeight - below - 12)
+        const roomAbove = Math.max(0, rect.top - 36)
+        const useBelow = roomBelow >= guideHeight || roomBelow >= roomAbove
+        const available = useBelow ? roomBelow : roomAbove
+        // On short screens keep the task readable instead of clamping a full
+        // guide over the action it teaches. Longer tasks can still scroll.
+        guide.classList.toggle('coach-constrained', available < guideHeight)
+        guide.style.setProperty('--target-guide-height', `${available}px`)
+        top = useBelow ? below : Math.max(12, rect.top - guide.offsetHeight - 24)
       }
       setGuidePosition({ left, top })
     }
@@ -887,7 +943,8 @@ function App() {
   }, [channel, directMessage, visibleMessages])
 
   const addReaction = (id: number) => {
-    setMessages((current) => current.map((item) => item.id === id ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item))
+    updateConversation(conversation, (current) => current.map((item) => item.id === id ? { ...item, reactions: (item.reactions ?? 0) + 1 } : item))
+    if (!directMessage && id === 2) completeLesson('reactions')
   }
 
   const completeLesson = (lesson: LessonId) => {
@@ -906,11 +963,10 @@ function App() {
 
   const selectChannel = (name: string) => {
     setChannel(name)
-    if (config) setMessages(makeChannelMessages(config, name))
     setChannelActionsOpen(false)
     setChannelView('messages')
     setThreadOpen(false)
-    setThreadMessage(null)
+    setThreadMessageId(null)
     setDirectMessage(null)
     setSidebarOpen(false)
     if (name === config?.training.channel_target) completeLesson('channels')
@@ -919,13 +975,9 @@ function App() {
   const selectDirectMessage = (name: string) => {
     setDirectMessage(name)
     setChannelActionsOpen(false)
-    setDirectMessages(name === moderatorName && reportMessage
-      ? [...makeDirectMessages(name, config), { ...reportMessage, checkmark: reportStatus === 'submitted' }]
-      : makeDirectMessages(name, config))
     setThreadOpen(false)
-    setThreadMessage(null)
+    setThreadMessageId(null)
     setSidebarOpen(false)
-    setDraft('')
     if (name === spamSender) setSpamRead(true)
     window.setTimeout(() => composerRef.current?.focus(), 100)
   }
@@ -1012,11 +1064,10 @@ function App() {
       body,
       ...(receivesProgramSupport ? { reactions: 1, reactionEmoji: '🤔', replies: 1 } : {}),
     }
-    if (directMessage) setDirectMessages((current) => [...current, message])
-    else setMessages((current) => [...current, message])
+    updateConversation(conversation, (current) => [...current, message])
     setDraft('')
     setMentionMenuOpen(false)
-    if (activeLesson === 'messages' && (!standalone || !directMessage && channel === config?.training.practice_channel)) completeLesson('messages')
+    if (activeLesson === 'messages' && !directMessage && channel === config?.training.practice_channel) completeLesson('messages')
     if (activeLesson === 'pings' && selectedMention === 'Nova' && body.includes('@Nova')) completeLesson('pings')
     if (activeLesson === 'dms' && inLessonDM) completeLesson('dms')
     setSelectedMention(null)
@@ -1029,13 +1080,17 @@ function App() {
       time: 'now', body: note, forwarded: forwardMessage, replies: 1,
     }
     setDirectMessage(report.moderator.name)
-    setDirectMessages([...makeDirectMessages(report.moderator.name, config), message])
+    // Retrying replaces the cancelled report, not the rest of this DM's history.
+    updateConversation(`dm:${report.moderator.name}`, (current) => [
+      ...current.filter((entry) => entry.id !== reportMessageId && !entry.ephemeral),
+      message,
+    ])
     setReportMessage(message)
     setReportWithUsername(false)
     setReportStatus('pending')
     setForwardMessage(null)
     setThreadOpen(false)
-    setThreadMessage(null)
+    setThreadMessageId(null)
     setDraft('')
   }
 
@@ -1054,7 +1109,7 @@ function App() {
   const submitReport = () => {
     if (!report || reportMessageId === null || reportStatus !== 'pending') return
     setReportStatus('submitted')
-    setDirectMessages((current) => [
+    updateConversation(`dm:${report.moderator.name}`, (current) => [
       ...current.map((entry) => entry.id === reportMessageId ? { ...entry, checkmark: true } : entry),
       shroudMessage(report.moderator.prompt.forwarded),
     ])
@@ -1064,23 +1119,22 @@ function App() {
   const cancelReport = () => {
     if (!report || reportMessageId === null || reportStatus !== 'pending') return
     setReportStatus('cancelled')
-    setDirectMessages((current) => [...current, shroudMessage(report.moderator.prompt.cancelledConfirmation)])
+    updateConversation(`dm:${report.moderator.name}`, (current) => [...current, shroudMessage(report.moderator.prompt.cancelledConfirmation)])
   }
 
   const sendThreadReply = (event: FormEvent) => {
     event.preventDefault()
     const body = threadDraft.trim()
-    if (!body) return
-    if (alsoSendToChannel && !directMessage) {
-      setMessages((current) => [...current, {
-        id: Date.now(),
-        author: 'You',
-        avatar: 'Y',
-        color: config?.program.color ?? '#6c5ce7',
-        time: 'now',
-        body,
-      }])
+    if (!body || !threadMessage) return
+    const reply: Message = {
+      id: Date.now(), author: 'You', avatar: 'Y',
+      color: config!.program.color, time: 'now', body,
     }
+    setThreadReplies((current) => ({ ...current, [threadKey]: [...(current[threadKey] ?? []), reply] }))
+    updateConversation(conversation, (current) => {
+      const updated = current.map((message) => message.id === threadMessage.id ? { ...message, replies: (message.replies ?? 0) + 1 } : message)
+      return alsoSendToChannel && !directMessage ? [...updated, reply] : updated
+    })
     setThreadDraft('')
     setAlsoSendToChannel(false)
     completeLesson('threads')
@@ -1144,11 +1198,6 @@ function App() {
   }
 
   const handleSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      setSearchOpen(false)
-      return
-    }
     if (!searchSuggestions.length) return
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
@@ -1159,9 +1208,28 @@ function App() {
       })
       return
     }
-    if ((event.key === 'Enter' || event.key === 'Tab') && searchActiveIndex >= 0) {
+    if (event.key === 'Enter' && searchActiveIndex >= 0) {
       event.preventDefault()
       selectSearchSuggestion(searchSuggestions[searchActiveIndex])
+    }
+  }
+
+  const handleSearchDialogKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setSearchOpen(false)
+    }
+    if (event.key !== 'Tab') return
+    const controls = searchDialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input')
+    if (!controls?.length) return
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
     }
   }
 
@@ -1174,13 +1242,11 @@ function App() {
     }
     if (activeLesson === 'channels') {
       setChannel(config.training.practice_channel)
-      setMessages(makeChannelMessages(config, config.training.practice_channel))
       setChannelView('messages')
     }
     if (activeLesson === 'dms') {
       setDirectMessage(null)
       setChannel(config.training.practice_channel)
-      setMessages(makeChannelMessages(config, config.training.practice_channel))
       setChannelView('messages')
     }
     if (lessons[lessonIndex + 1] === 'leave-channel') {
@@ -1193,7 +1259,7 @@ function App() {
     setSearchQuery('')
     setSidebarOpen(false)
     setThreadOpen(false)
-    setThreadMessage(null)
+    setThreadMessageId(null)
     setNotificationsOpen(false)
     setChannelActionsOpen(false)
     setMentionMenuOpen(false)
@@ -1493,17 +1559,17 @@ function App() {
                   {message.pinned && <div className="pinned-label"><Star size={13} /> Pinned by channel organizers</div>}
                   {message.attachment && <div className="message-attachment"><div className="attachment-art"><Sparkles /></div><div><small>{message.attachment.eyebrow}</small><strong>{message.attachment.title}</strong><p>{message.attachment.description}</p>{message.attachment.url && <span>{message.attachment.url}</span>}</div></div>}
                   {!directMessage && message.id === 2 && <div className="message-tools">
-                    <button className={targetLesson === 'reactions' ? 'target-action' : ''} aria-label={`Add a ${message.reactionEmoji ?? '⭐'} reaction`} onClick={() => { addReaction(message.id); completeLesson('reactions') }}><span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
+                    <button className={targetLesson === 'reactions' ? 'target-action' : ''} aria-label={`Add a ${message.reactionEmoji ?? '⭐'} reaction`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '⭐'}</span> {message.reactions}</button>
                     {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
                     <button className="reaction-add" aria-label="Add a reaction" onClick={() => addReaction(message.id)}><SmilePlus /></button>
-                    <button className={`reply-bar ${targetLesson === 'threads' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    <button className={`reply-bar ${targetLesson === 'threads' && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessageId(message.id); setThreadOpen(true) }}>
                       <ReplyFacepile /><strong>{message.replies} replies</strong><span>View thread</span>
                     </button>
                   </div>}
                   {directMessage && (message.checkmark || message.replies) && <div className="message-tools reaction-row">
                     {message.checkmark && <button className="reacted" aria-label="white_check_mark, 1 reaction"><span>✅</span> 1</button>}
                     {message.checkmark && <button className="reaction-add" aria-label="Add a reaction"><SmilePlus /></button>}
-                    {message.replies && <button className={`reply-bar ${reportPhase === 'submit' && message.id === reportMessageId && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    {message.replies && <button className={`reply-bar ${reportPhase === 'submit' && message.id === reportMessageId && !threadOpen ? 'target-action' : ''}`} onClick={() => { setThreadMessageId(message.id); setThreadOpen(true) }}>
                       <span className="reply-facepile" aria-hidden="true"><span style={{ background: report?.moderator.color }}>{report?.moderator.avatar
                         ? <img src={assetUrl(report.moderator.avatar)} alt="" onError={hideBrokenImage} />
                         : report?.moderator.name[0]}</span></span>
@@ -1514,14 +1580,14 @@ function App() {
                     {message.reactions && <button aria-label={`${message.reactionEmoji ?? '✨'} ${message.reactions}`} onClick={() => addReaction(message.id)}><span>{message.reactionEmoji ?? '✨'}</span> {message.reactions}</button>}
                     {message.extraReactions?.map((reaction) => <button key={reaction.emoji}><span>{reaction.emoji}</span> {reaction.count}</button>)}
                     {message.reactions && <button className="reaction-add" aria-label={`Add a ${message.reactionEmoji ?? '✨'} reaction`} onClick={() => addReaction(message.id)}><SmilePlus /></button>}
-                    {message.replies && <button className="reply-bar" onClick={() => { setThreadMessage(message); setThreadOpen(true) }}>
+                    {message.replies && <button className="reply-bar" onClick={() => { setThreadMessageId(message.id); setThreadOpen(true) }}>
                       <ReplyFacepile /><strong>{message.replies} {message.replies === 1 ? 'reply' : 'replies'}</strong><span>View thread</span>
                     </button>}
                   </div>}
                 </div>
                 <div className="message-hover-actions">
                   <button tabIndex={-1} aria-hidden="true">{message.author === spamSender && activeLesson === 'safety' ? <SmilePlus /> : '🙂'}</button>
-                  <button tabIndex={-1} aria-hidden="true" onClick={() => { setThreadMessage(message); setThreadOpen(true) }}><MessageCircle /></button>
+                  <button tabIndex={-1} aria-hidden="true" onClick={() => { setThreadMessageId(message.id); setThreadOpen(true) }}><MessageCircle /></button>
                   {report && directMessage === spamSender && message.author === spamSender && activeLesson === 'safety' && reportStatus !== 'pending' && !isActiveComplete && <button className="forward-message" aria-label="Forward message" title="Forward message…" onClick={() => setForwardMessage(message)}><Forward size={18} /></button>}
                   <button tabIndex={-1} aria-hidden="true"><MoreHorizontal /></button>
                 </div>
@@ -1529,7 +1595,7 @@ function App() {
             ))}
           </div>}
 
-          {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && inLessonDM ? 'target-composer' : ''}`} onSubmit={sendMessage}>
+          {(directMessage || channelView === 'messages') && !(!directMessage && isReadOnlyChannel(config, channel)) && <form className={`composer ${!threadOpen && (targetLesson === 'messages' || targetLesson === 'pings' || targetLesson === 'dms' && inLessonDM) ? 'target-composer' : ''}`} onSubmit={sendMessage}>
             <div className="format-bar" role="toolbar" aria-label="Formatting">
               <button type="button" aria-label="Bold"><strong>B</strong></button>
               <button type="button" aria-label="Italic"><em>I</em></button>
@@ -1589,7 +1655,7 @@ function App() {
 
         {threadOpen && threadMessage && <aside className="thread-panel">
           <header><div><strong>Thread</strong><span>{directMessage ?? `#${channel}`}</span></div><button aria-label="Close thread" onClick={() => setThreadOpen(false)}><X /></button></header>
-          <div className="thread-messages">
+          <div className="thread-messages" ref={threadListRef}>
             <article className="message"><Avatar message={threadMessage} /><div className="message-content"><div className="message-meta"><strong>{threadMessage.author}</strong>{threadMessage.bot && <span className="bot-label">APP</span>}<time>{threadMessage.time}</time></div><p>{threadMessage.body}</p>{threadMessage.forwarded && <blockquote className="forwarded-message"><strong>{threadMessage.forwarded.author}</strong><time>{threadMessage.forwarded.time}</time><p>{renderMessageBody(threadMessage.forwarded.body)}</p></blockquote>}</div></article>
             <div className="reply-count">{threadMessage.replies ?? 0} {(threadMessage.replies ?? 0) === 1 ? 'reply' : 'replies'}<span /></div>
             {report && directMessage === moderatorName && threadMessage.id === reportMessageId && reportStatus !== 'none' ? <>
@@ -1618,6 +1684,7 @@ function App() {
               <article className="message compact"><div className="avatar small-avatar">L</div><div className="message-content"><div className="message-meta"><strong>Leo</strong><time>9:45 AM</time></div><p>This is lovely! Maybe each star could play one note?</p></div></article>
               <article className="message compact"><div className="avatar small-avatar orange">A</div><div className="message-content"><div className="message-meta"><strong>Aria</strong><time>9:46 AM</time></div><p>Yes! I can help test it on mobile too.</p></div></article>
             </>}
+            {(threadReplies[threadKey] ?? []).map((reply) => <article className="message compact" key={reply.id}><Avatar message={reply} /><div className="message-content"><div className="message-meta"><strong>{reply.author}</strong><time>{reply.time}</time></div><p>{renderMessageBody(reply.body)}</p></div></article>)}
           </div>
           <form className={`thread-composer ${targetLesson === 'threads' && threadOpen ? 'target-composer' : ''}`} onSubmit={sendThreadReply}>
             <div className="format-bar" role="toolbar" aria-label="Formatting">
@@ -1655,8 +1722,8 @@ function App() {
           </form>
         </aside>}
 
-        {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section className="search-modal" onMouseDown={(event) => event.stopPropagation()}>
-          <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false); setSearchActiveIndex(-1) }} onKeyDown={handleSearchKeyDown} placeholder="Search messages, people, and channels" aria-autocomplete="list" aria-controls={searchQuery.trim() ? 'search-suggestions' : undefined} aria-expanded={Boolean(searchQuery.trim())} autoFocus /><button type="button" onClick={() => setSearchOpen(false)}><X /></button></form>
+        {searchOpen && <div className="modal-backdrop" onMouseDown={() => setSearchOpen(false)}><section ref={searchDialogRef} className="search-modal" role="dialog" aria-modal="true" aria-label="Search messages, people, and channels" onKeyDown={handleSearchDialogKeyDown} onMouseDown={(event) => event.stopPropagation()}>
+          <form onSubmit={runSearch}><Search /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setSearched(false); setSearchActiveIndex(-1) }} onKeyDown={handleSearchKeyDown} placeholder="Search messages, people, and channels" aria-label="Search messages, people, and channels" aria-autocomplete="list" aria-controls={searchQuery.trim() ? 'search-suggestions' : undefined} aria-expanded={Boolean(searchQuery.trim())} /><button type="button" aria-label="Close search" onClick={() => setSearchOpen(false)}><X /></button></form>
           {searchQuery.trim() && (!searched || searchSuggestions.length > 0) ? <div id="search-suggestions" className="search-suggestions" role="listbox" aria-label="Search suggestions">
             {searchSuggestions.some((suggestion) => suggestion.type === 'channel') && <p>Channels</p>}
             {searchSuggestions.map((suggestion, index) => suggestion.type === 'channel' ? <button key={`channel-${suggestion.name}`} type="button" className={index === searchActiveIndex ? 'active' : ''} onMouseEnter={() => setSearchActiveIndex(index)} onClick={() => selectSearchSuggestion(suggestion)}><span className="suggestion-icon"><Hash /></span><span role="option" aria-selected={index === searchActiveIndex}><strong>{suggestion.name}</strong><small>Channel</small></span><ChevronRight /></button> : null)}
@@ -1671,7 +1738,7 @@ function App() {
           {searched && <div className="search-results message-search-results">
             <div className="search-results-header"><div><strong>{searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}</strong><span> for “{searchQuery}”</span></div><button type="button">Most relevant <ChevronDown /></button></div>
             <div className="search-filter-row"><span>Messages</span>{parsedSearch.scope && <span><Hash size={12} /> In: {parsedSearch.scope}</span>}<button type="button">From</button><button type="button">After</button></div>
-            {searchResults.map((result) => <button key={`${result.channel}-${result.message.id}`} onClick={() => { joinChannel(result.channel, true); setSearchOpen(false) }}>
+            {searchResults.map((result) => <button key={`${result.channel}-${result.message.id}`} onClick={() => selectSearchSuggestion({ type: 'channel', name: result.channel })}>
               <Hash />
               <div><strong>{result.channel}</strong>{result.message.author && <span className="search-result-meta"><b>{result.message.author}</b> · {result.message.time}{result.message.replies ? ` · ${result.message.replies} replies` : ''}</span>}{result.message.body && <p>{result.message.body}</p>}</div>
             </button>)}

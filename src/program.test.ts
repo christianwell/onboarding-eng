@@ -73,6 +73,22 @@ describe('program configuration', () => {
     expect(() => validateProgram({ ...config, training: { lessons: ['teleporting'] } })).toThrow('unknown lesson')
   })
 
+  it('rejects an empty guide and read-only posting lessons', () => {
+    expect(() => validateProgram({ ...config, training: { ...config.training, lessons: [] } })).toThrow('At least one training lesson')
+    for (const lesson of ['messages', 'pings']) {
+      expect(() => validateProgram({
+        ...structuredClone(config),
+        training: { ...config.training, lessons: [lesson] },
+        channels: { ...config.channels, read_only: ['stardance'] },
+      })).toThrow('practice channel must allow posting')
+    }
+    expect(validateProgram({
+      ...structuredClone(config),
+      training: { ...config.training, lessons: ['search'] },
+      channels: { ...config.channels, read_only: ['stardance'] },
+    }).training.lessons).toEqual(['search'])
+  })
+
   it('requires the completion channel to be joined by default', () => {
     expect(() => validateProgram({
       ...config,
@@ -105,7 +121,7 @@ describe('program configuration', () => {
   it('accepts human-written lesson, channel, and support configuration', () => {
     const customized = validateProgram({
       ...structuredClone(config),
-      channels: { ...config.channels, read_only: ['stardance'] },
+      channels: { ...config.channels, read_only: ['welcome'] },
       copy: { lessons: { channels: {
         eyebrow: 'Eyebrow',
         title: 'Title',
@@ -125,7 +141,7 @@ describe('program configuration', () => {
     })
 
     expect(customized.copy?.lessons?.channels?.title).toBe('Title')
-    expect(customized.channels.read_only).toEqual(['stardance'])
+    expect(customized.channels.read_only).toEqual(['welcome'])
     expect(customized.support?.channel).toBe('stardance-help')
   })
 

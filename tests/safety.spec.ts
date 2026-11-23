@@ -31,7 +31,15 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 1272, height: 581
     const trigger = page.getByRole('button', { name: 'Forward message', exact: true })
     const reachable = () => trigger.evaluate((button) => {
       const rect = button.getBoundingClientRect()
-      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+      // Keep CI failures actionable even when the obstruction is intermittent.
+      return button.contains(hit) ? true : {
+        button: rect.toJSON(), blockedBy: hit?.outerHTML.slice(0, 500) ?? 'outside viewport',
+        guide: document.querySelector('.coach')?.getBoundingClientRect().toJSON(),
+        messages: document.querySelector('.messages')?.getBoundingClientRect().toJSON(),
+        scroll: document.querySelector('.messages')?.scrollTop,
+        active: document.activeElement?.outerHTML.slice(0, 200),
+      }
     })
     await expect.poll(reachable).toBe(true)
     await expect.poll(() => page.locator('.coach').evaluate((guide) => {

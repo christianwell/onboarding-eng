@@ -359,7 +359,7 @@ function ProgramBuilder() {
       </section>
 
       <aside className="builder-preview">
-        <header><div><FileCode2 /><span><strong>config.yaml</strong><small>public/programs/{draft.slug || 'your-slug'}/</small></span></div><button onClick={copyYaml}>{copied ? <CheckCircle2 /> : <Clipboard />}{copied ? 'Copied' : 'Copy'}</button></header>
+        <header><div><FileCode2 /><span><strong>config.yaml</strong><small>public/programs/{draft.slug || 'your-slug'}/</small></span></div><button disabled={Boolean(validationError)} onClick={copyYaml}>{copied ? <CheckCircle2 /> : <Clipboard />}{copied ? 'Copied' : 'Copy'}</button></header>
         <pre>{yaml}</pre>
         <div className="builder-files"><strong><FolderOpen /> Add these files</strong><code>public/programs/{draft.slug || 'your-slug'}/config.yaml</code><code>{logoFile || 'public/programs/your-slug/logo.svg'}</code></div>
       </aside>
