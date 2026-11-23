@@ -10,6 +10,13 @@ for (const width of [1440, 340]) {
     const guide = page.getByRole('dialog', { name: 'Demo Workspace onboarding guide' })
     await expect(guide.getByRole('heading', { name: /Let’s get you settled in/ })).toBeVisible()
     await expect(guide.getByRole('heading', { name: /Slack uses channels/ })).toHaveCount(0)
+    if (width === 340) {
+      await expect(page.locator('.mobile-channel-meta')).toHaveText(/\d+ members/)
+      await expect(page.locator('.mobile-channel-meta')).not.toHaveText('82,896 members')
+    } else {
+      await expect(page.locator('.channel-member-count')).toHaveAccessibleName(/\d+ members/)
+      await expect(page.locator('.channel-member-count')).not.toHaveAccessibleName('82,896 members')
+    }
     await guide.getByRole('button', { name: 'Let’s get started' }).click()
 
     const channels = width === 340 ? page.getByRole('region', { name: 'Demo Workspace home' }) : page.getByRole('complementary', { name: 'Demo Workspace channels' })
@@ -38,6 +45,9 @@ for (const width of [1440, 340]) {
     await search.fill('Jules')
     await page.getByRole('button', { name: 'Open DM with Jules' }).click()
     await expect(guide.getByText('Send Jules a friendly hello in this DM.')).toBeVisible()
+    await expect(page.locator('.channel-member-count')).toHaveCount(0)
+    await expect(page.locator('.channel-heading').getByRole('button', { name: 'View person' })).toHaveCount(0)
+    await expect(page.locator('.mobile-channel-meta')).toHaveText('Direct message')
     await expect(send).toBeDisabled()
     await page.getByRole('textbox', { name: 'Message Jules', exact: true }).fill('Hey Jules!')
     await send.click()

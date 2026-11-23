@@ -5,6 +5,23 @@ async function openJan(page: Page) {
   await expect(page.locator('.messages')).toContainText("You're stinky and ugly!")
 }
 
+test('member counts belong to channels, not private conversations', async ({ page }) => {
+  await page.goto('/slack/step/safety')
+  const header = page.locator('.channel-header')
+  await expect(header.getByRole('button', { name: /82,896/ })).toBeVisible()
+  await openJan(page)
+  await expect(header).not.toContainText('82,896')
+  await expect(header).toContainText('A private conversation with Jan adultman.')
+  await page.getByRole('button', { name: 'Nova', exact: true }).click()
+  await expect(header).not.toContainText('82,896')
+  await expect(header).toContainText('A private conversation with Nova.')
+  await page.locator('#workspace-sidebar').getByRole('button', { name: 'lounge', exact: false }).click()
+  await expect(header.getByRole('button', { name: /82,896/ })).toBeVisible()
+  await page.reload()
+  await openJan(page)
+  await expect(header).not.toContainText('82,896')
+})
+
 for (const viewport of [{ width: 1440, height: 900 }, { width: 1272, height: 581 }, { width: 913, height: 338 }]) {
   test(`forwarding stays reachable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport)
@@ -251,6 +268,14 @@ for (const program of ['slack', 'stardance']) {
       return toolbar.bottom <= author.top && button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
     })).toBe(true)
     await forwardToShroud(page)
+    await page.setViewportSize({ width: 384, height: 354 })
+    for (const control of [page.getByRole('checkbox', { name: 'Include my username' }), page.getByRole('button', { name: 'Submit', exact: true })]) {
+      await expect.poll(() => control.evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        return rect.top >= 0 && rect.bottom <= innerHeight
+          && element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+      })).toBe(true)
+    }
     await page.getByRole('checkbox', { name: 'Include my username' }).check()
     await page.getByRole('button', { name: 'Submit', exact: true }).click()
     await expect(page.locator('.completion-modal')).toBeVisible()
