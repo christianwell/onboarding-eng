@@ -3,6 +3,31 @@ import { expect, test } from '@playwright/test'
 test.use({ viewport: { width: 340, height: 510 }, isMobile: true, hasTouch: true })
 
 for (const program of ['slack', 'stardance']) {
+  test(`${program} keeps Notifications guidance clear of the DM composer and menu`, async ({ page }) => {
+    for (const height of [729, 354]) {
+      await page.setViewportSize({ width: 384, height })
+      await page.goto(`/program/${program}/step/notifications`)
+      await page.getByRole('button', { name: 'Open channel list', exact: true }).tap()
+      await page.locator('.mobile-home-list').getByRole('button', { name: /^N ?Nova$/ }).tap()
+      await page.locator('.composer input').fill('A private message during Notifications')
+      const send = page.getByRole('button', { name: 'Send message', exact: true })
+      await expect.poll(() => send.evaluate((button) => {
+        const rect = button.getBoundingClientRect()
+        return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2))
+      })).toBe(true)
+      await expect(page.locator('.coach .task-box')).toBeInViewport({ ratio: 1 })
+      await send.tap()
+      await expect(page.locator('.messages')).toContainText('A private message during Notifications')
+      await expect(page.locator('.completion-modal')).toHaveCount(0)
+      await page.getByRole('button', { name: 'Notification settings', exact: true }).tap()
+      await page.getByRole('button', { name: 'Nothing', exact: true }).tap()
+      await expect(page.locator('.completion-modal')).toHaveCount(0)
+      await page.getByRole('button', { name: 'Notification settings', exact: true }).tap()
+      await page.getByRole('button', { name: 'Mentions & DMs', exact: true }).tap()
+      await expect(page.locator('.completion-modal')).toBeVisible()
+    }
+  })
+
   test(`${program} keeps a thread above the Messages lesson's background composer`, async ({ page }) => {
     await page.goto(`/program/${program}/step/messages`)
     await page.getByRole('button', { name: '2 replies View thread', exact: true }).tap()

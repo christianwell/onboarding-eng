@@ -719,6 +719,18 @@ function App() {
           guide.style.removeProperty('--report-guide-height')
         }
 
+        if (introComplete && activeLesson === 'notifications' && !sidebarOpen && !searchOpen) {
+          const composer = document.querySelector<HTMLElement>(threadOpen ? '.thread-composer' : '.composer')
+          const bottomLimit = notificationsOpen
+            ? viewportTop + viewportHeight - guideBottomInset
+            : composer?.getBoundingClientRect().top ?? viewportTop + viewportHeight - guideBottomInset
+          // Leave both the notification control/menu and the composer usable.
+          top = Math.max(viewportTop + 54, (target?.getBoundingClientRect().bottom ?? viewportTop + 42) + 12)
+          const available = Math.max(0, bottomLimit - top - 12)
+          guide.classList.toggle('coach-constrained', available < guideHeight)
+          guide.style.setProperty('--target-guide-height', `${available}px`)
+        }
+
         if (target && !isActiveComplete && !skipRing) {
           let rect = target.getBoundingClientRect()
           const targetBottomLimit = top - 12
