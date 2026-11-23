@@ -3,6 +3,19 @@ import { expect, test } from '@playwright/test'
 test.use({ viewport: { width: 340, height: 510 }, isMobile: true, hasTouch: true })
 
 for (const program of ['slack', 'stardance']) {
+  test(`${program} keeps a thread above the Messages lesson's background composer`, async ({ page }) => {
+    await page.goto(`/program/${program}/step/messages`)
+    await page.getByRole('button', { name: '2 replies View thread', exact: true }).tap()
+    await page.getByRole('textbox', { name: 'Reply to Nova' }).fill('A reply, not a channel message')
+    await page.getByRole('button', { name: 'Send reply', exact: true }).tap()
+    await expect(page.locator('.thread-messages')).toContainText('A reply, not a channel message')
+    await expect(page.locator('.completion-modal')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Close thread' }).tap()
+    await page.locator('.composer input').fill('Hello from the practice channel')
+    await page.getByRole('button', { name: 'Send message', exact: true }).tap()
+    await expect(page.locator('.completion-modal')).toBeVisible()
+  })
+
   test(`${program} keeps thread reply controls reachable above the keyboard`, async ({ page }) => {
     await page.goto(`/program/${program}/step/threads`)
     const openThread = page.getByRole('button', { name: '2 replies View thread' })
@@ -45,6 +58,18 @@ for (const program of ['slack', 'stardance']) {
     await expect(page.getByRole('button', { name: 'Send message', exact: true })).toBeDisabled()
     await page.locator('.composer input').fill('Hello Christian!')
     await page.getByRole('button', { name: 'Send message', exact: true }).tap()
+    await expect(page.locator('.completion-modal')).toBeVisible()
+  })
+}
+
+for (const width of [620, 621, 720, 768, 785, 913]) {
+  test(`the thread target stays clickable at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 785 ? 303 : 450 })
+    await page.goto('/program/stardance/step/threads')
+    await expect(page.locator('.coach .task-box')).toBeInViewport({ ratio: 1 })
+    await page.getByRole('button', { name: '2 replies View thread', exact: true }).tap()
+    await page.getByRole('textbox', { name: 'Reply to Nova' }).fill('A short landscape reply')
+    await page.getByRole('button', { name: 'Send reply', exact: true }).tap()
     await expect(page.locator('.completion-modal')).toBeVisible()
   })
 }

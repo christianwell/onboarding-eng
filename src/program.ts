@@ -273,6 +273,14 @@ function isHttpUrl(value: string) {
   }
 }
 
+export function isReadOnlyChannel(config: ProgramConfig, channel: string) {
+  return config.channels.read_only?.includes(channel) ?? (channel === 'announcements'
+    || channel === 'happenings'
+    || channel === 'news-wire'
+    || channel.includes('bulletin')
+    || channel.includes('community-announcements'))
+}
+
 export function validateProgram(value: unknown): ProgramConfig {
   if (!value || typeof value !== 'object') throw new Error('Program config must be an object')
   const config = value as ProgramConfig
@@ -287,6 +295,9 @@ export function validateProgram(value: unknown): ProgramConfig {
   }
   if (!Array.isArray(config.training?.lessons)) {
     throw new Error('Training lessons must be an array')
+  }
+  if (config.training.lessons.length === 0) {
+    throw new Error('At least one training lesson is required')
   }
   if (config.training.lessons.some((lesson) => !lessonIds.includes(lesson))) {
     throw new Error('Program config contains an unknown lesson')
@@ -312,6 +323,9 @@ export function validateProgram(value: unknown): ProgramConfig {
   }
   if (config.channels.read_only && (!Array.isArray(config.channels.read_only) || config.channels.read_only.some((channel) => !getDefaultChannels(config).includes(channel)))) {
     throw new Error('Read-only channels must be included in the default channels')
+  }
+  if (config.training.lessons.some((lesson) => lesson === 'messages' || lesson === 'pings') && isReadOnlyChannel(config, config.training.practice_channel)) {
+    throw new Error('The practice channel must allow posting for Messages and Pings lessons')
   }
   if (config.copy?.lessons) {
     for (const [lesson, copy] of Object.entries(config.copy.lessons)) {
