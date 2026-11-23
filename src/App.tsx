@@ -559,7 +559,11 @@ function App() {
   const returnsToFlow = config ? completionUrl !== config.completion.auth_url : false
 
   useEffect(() => {
-    if (!allComplete || !config || standalone) return
+    if (!allComplete || !config) return
+    if (standalone) {
+      window.close()
+      return
+    }
 
     onboardingTracker?.complete(returnsToFlow ? 'return' : 'auth')
     const completion = {

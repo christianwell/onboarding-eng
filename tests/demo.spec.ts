@@ -1,7 +1,16 @@
 import { expect, test } from '@playwright/test'
 
-for (const width of [1440, 340]) {
-  test(`the standalone guide teaches channels, messages, and DMs at ${width}px`, async ({ page }) => {
+for (const { width, popup } of [{ width: 1440, popup: false }, { width: 340, popup: false }, { width: 1440, popup: true }]) {
+  test(`the standalone guide teaches channels, messages, and DMs at ${width}px${popup ? ' in a browser-opened tab' : ''}`, async ({ page: opener }) => {
+    // Give manually opened tabs multiple documents in their history so Chromium
+    // cannot treat them as script-closable single-document tabs.
+    await opener.goto('/slack')
+    let page = opener
+    if (popup) {
+      const opened = opener.waitForEvent('popup')
+      await opener.evaluate(() => window.open('/demo', '_blank'))
+      page = await opened
+    }
     await page.setViewportSize({ width, height: width === 340 ? 510 : 900 })
     await page.addInitScript(() => {
       window.addEventListener('hackclub:onboarding-complete', () => { document.body.dataset.handoff = 'yes' })
@@ -50,8 +59,15 @@ for (const width of [1440, 340]) {
     await expect(page.locator('.mobile-channel-meta')).toHaveText('Direct message')
     await expect(send).toBeDisabled()
     await page.getByRole('textbox', { name: 'Message Jules', exact: true }).fill('Hey Jules!')
+    const closed = popup ? page.waitForEvent('close', { timeout: 3000 }) : null
     await send.click()
 
+    if (closed) {
+      await closed
+      expect(opener.isClosed()).toBe(false)
+      await expect(opener).toHaveURL(/\/slack$/)
+      return
+    }
     await expect(page.getByText('Step 4 of 4 · Complete')).toBeVisible()
     await expect(page.getByText("You're done — you can close this tab.")).toBeVisible()
     await expect(page.getByRole('link')).toHaveCount(0)
