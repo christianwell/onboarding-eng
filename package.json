@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
-    "build:github": "tsc -b && vite build --mode github",
+    "build": "tsc -b && vite build && node scripts/build-channels-preview.mjs",
+    "build:github": "tsc -b && vite build --mode github && node scripts/build-channels-preview.mjs github",
     "test": "vitest run src",
     "test:browser": "playwright test",
     "check": "npm run test && npm run build"
